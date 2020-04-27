@@ -51,8 +51,9 @@ class latent_df(data_frame):
         self.device = device
         self.dim = dim
         self.pca = pca
+        self.latent_length = 2
 
-        latent = np.zeros((len(data),2))
+        latent = np.zeros((len(data),self.latent_length))
         self.latent_mask = [False]* len(data)
         self.data = np.concatenate((data,latent),axis=1)
         self.coord = self.data[:,:n_channel]
@@ -84,14 +85,14 @@ class latent_df(data_frame):
         if len(t) > 0:
             x = []
             for tt in t:
-                x.append(self.data[tt][:,:-2])
+                x.append(self.data[tt][:,:-self.latent_length])
             x = prepare_for_model(x,device,3,dim)
             # print(x[0].shape)
             with torch.no_grad():
                 y = model.encode(x)
             latent = y.detach().cpu().numpy()   
             # print(latent.shape) 
-            self.data[not_cal,-2:] = latent
+            self.data[not_cal,-self.latent_length:] = latent[:,:self.latent_length]
             self.near_coord = self.coord[self.near]
             self.near_attr = self.attr[self.near]
             self.near_pc = self.data[self.near]
@@ -296,7 +297,7 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
     for i in range(start,end+step-1,step):
         data = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i)))
         data = data[:,:dim]
-        # scatter_3d(data,50,350,50,center,False)
+        scatter_3d(data,50,350,50,center,False)
         # scatter_3d(data,50,350,50,center,True,"{:03d}.png".format(i))
 
         data_next = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i+step)))
