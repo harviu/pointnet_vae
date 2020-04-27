@@ -297,7 +297,7 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
     for i in range(start,end+step-1,step):
         data = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i)))
         data = data[:,:dim]
-        scatter_3d(data,50,350,50,center,False)
+        # scatter_3d(data,50,350,50,center,False)
         # scatter_3d(data,50,350,50,center,True,"{:03d}.png".format(i))
 
         data_next = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i+step)))
@@ -312,6 +312,10 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
             target = data_frame(data_next,3,center,h,bins,None)
         
         m = start_df.near_pc.copy()
+        if i == start:
+            pc1 = m.copy()
+            pc1 = mean_sub(pc1)
+            # print(pc1)
         # pc1 = m.copy()
         # pc1 = mean_sub(pc1)
         # scatter_3d(pc1)
@@ -328,15 +332,15 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
         # pc3 = mean_sub(pc3)
         # scatter_3d(pc3)
 
-        # dis1 = nn_distance(pc1,pc2)
+        dis1 = nn_distance(pc1,pc2)
         # dis2 = nn_distance(pc1,pc3)
         # if dis2< dis1:
         center = target.center
-        center_list.append(center)
+        center_list.append(dis1)
 
-        # print("original distance:",dis1)
+        print("original distance:",dis1)
         # print("after meanshift:",dis2)
-    # print(center_list)
+    print(center_list)
 
 
     
