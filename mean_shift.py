@@ -303,6 +303,7 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
         data_next = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i+step)))
         data_next = data_next[:,:dim]
 
+        t0 = datetime.now()
         if latent:
             start_df = latent_df(data,3,center,h,bins,None,model,device,dim)
             target = latent_df(data_next,3,center,h,bins,None,model,device,dim)
@@ -311,8 +312,8 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
             target = data_frame(data_next,3,center,h,bins,None)
         
         m = start_df.near_pc.copy()
-        pc1 = m.copy()
-        pc1 = mean_sub(pc1)
+        # pc1 = m.copy()
+        # pc1 = mean_sub(pc1)
         # scatter_3d(pc1)
 
         pc2 = target.near_pc.copy()
@@ -321,12 +322,14 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
 
         ms = mean_shift(m,target,ite=20,dis=0.01)
         ms.shift()
-        pc3 = target.near_pc.copy()
-        pc3 = mean_sub(pc3)
+        t1 = datetime.now()
+        print("total time: ",t1-t0)
+        # pc3 = target.near_pc.copy()
+        # pc3 = mean_sub(pc3)
         # scatter_3d(pc3)
 
-        dis1 = nn_distance(pc1,pc2)
-        dis2 = nn_distance(pc1,pc3)
+        # dis1 = nn_distance(pc1,pc2)
+        # dis2 = nn_distance(pc1,pc3)
         # if dis2< dis1:
         center = target.center
         center_list.append(center)
