@@ -297,7 +297,7 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
     for i in range(start,end+step-1,step):
         data = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i)))
         data = data[:,:dim]
-        # scatter_3d(data,50,350,50,center,False)
+        scatter_3d(data,50,350,50,center,False)
         # scatter_3d(data,50,350,50,center,True,"{:03d}.png".format(i))
 
         data_next = data_to_numpy(data_reader(path+"\{:03d}.vtu".format(i+step)))
