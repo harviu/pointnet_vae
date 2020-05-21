@@ -146,10 +146,10 @@ if __name__ == "__main__":
         #best case
 
         print("with")
-        # track_run(data_path+"/run41/",10,19,1,(3.7, 0.7, 9.1),0.5,10,model,device,args.dim,True)
+        # track_run(data_path+"/run41/",10,30,1,(3.7, 0.7, 9.1),0.5,2,model,device,args.dim,True)
         track_run(data_path+"/run05/",20,30,1,(-0.5, -3.7, 6.5),0.5,10,model,device,args.dim,True)
         print("without")
-        # track_run(data_path+"/run41/",10,19,1,(3.7, 0.7, 9.1),0.5,1000,model,device,args.dim,False)
+        # track_run(data_path+"/run41/",10,21,1,(3.7, 0.7, 9.1),0.5,1000,model,device,args.dim,False)
         track_run(data_path+"/run05/",20,30,1,(-0.5, -3.7, 6.5),0.5,1000,model,device,args.dim,False)
 
         # track_run(data_path+"/run40/",10,20,1,(1, -3.4, 9.2),0.5,10,model,device,args.dim,True)

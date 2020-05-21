@@ -315,6 +315,7 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
         if i == start:
             pc1 = m.copy()
             pc1 = mean_sub(pc1)
+            pc1= pc1[:,:4]
             # print(pc1)
         # pc1 = m.copy()
         # pc1 = mean_sub(pc1)
@@ -322,6 +323,8 @@ def track_run(path,start,end,step,init_center,h,bins,model,device,dim,latent=Tru
 
         pc2 = target.near_pc.copy()
         pc2 = mean_sub(pc2)
+        pc2 = pc2[:,:4]
+        # print(pc2.shape)
         # scatter_3d(pc2)
 
         ms = mean_shift(m,target,ite=20,dis=0.01)
