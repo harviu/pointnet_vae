@@ -13,7 +13,7 @@ import numpy as np
 from PIL import Image
 from scipy.signal import medfilt
 
-from model import VAE
+from model.vae import VAE
 from process_data import to_tensor_list,image_to_pointcloud
 
 

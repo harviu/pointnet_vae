@@ -5,7 +5,7 @@ import math
 from datetime import datetime
 
 from vtk import *
-from vtk.util import numpy_support
+from vtkmodules.util import numpy_support
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D

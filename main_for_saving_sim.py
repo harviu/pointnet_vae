@@ -17,7 +17,7 @@ import vtk
 from vtk import *
 from vtk.util import numpy_support
 
-from model import VAE
+from model.vae import VAE
 from process_data import *
 from latent_max import LatentMax
 from mean_shift_copy import *
