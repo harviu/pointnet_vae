@@ -2,7 +2,7 @@ import random
 import os
 import sys
 import math
-from datetime import datetime
+import time
 
 from vtk import *
 from vtkmodules.util import numpy_support
@@ -11,8 +11,47 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from PIL import Image
 from scipy.spatial import KDTree
+from multiprocessing import Pool
 import torch
+from torch.utils.data import Dataset
+from vincenty_cuda_nns import CudaTree
 
+def func(d):
+    return d[1].query(d[0],25)
+
+class FPM(Dataset):
+    def __init__(self,directory):
+        data = data_reader(directory)
+        data = data_to_numpy(data)
+        mean = [2.39460057e+01, -4.29336209e-03, 9.68809421e-04, 3.44706680e-02]
+        std = [55.08245731,  0.32457581,  0.32332313,  0.6972805]
+        data[:,:2] /= 5
+        data[:,2] = data[:,2]/5-1
+        data[:,3:] = (data[:,3:]-mean)/std
+        coord = data[:,:3]
+        kd = KDTree(coord)
+        t1 = time.time()
+        with Pool(8) as pool:
+            dis, idx = zip(*pool.map(func,zip(coord,[kd]*len(coord))))
+        print(time.time()-t1)
+        # dis, idx = kd.query(coord,25)
+        knn = np.transpose(data[list(idx)],(0,2,1))
+        self.knn = torch.Tensor(knn)
+
+    def __getitem__(self, index):
+        ret = self.knn[index]
+        return ret
+
+    def __len__(self):
+        return len(self.knn)
+
+def wrap_data(data):
+    return [
+        data[:,:,0],
+        data[:,:,:15],
+        data[:,:,:20],
+        data[:,:,:25],
+    ]
 
 class Generator():
     """
@@ -352,49 +391,3 @@ def mean_sub(data,dim=3):
     mean = np.mean(data[:,:dim],axis = 0)
     data[:,:dim] -= mean
     return data
-
-if __name__ == "__main__":
-    # generate data
-    try:
-        data_dir = os.environ['data']
-        data_dir = data_dir + "\\2016_scivis_fpm\\0.44"
-    except KeyError:
-        data_dir = "../data/0.44"
-    # print(data_reader(data_dir+"/run01/010.vtu"))
-    # generator = Generator(data_dir)
-    # generator.generate_new("data_sample")
-    # t1 = datetime.now()
-
-    # generator._sample_one_file(generator.file_list[1])
-
-    # t2 = datetime.now()
-    # print(t2-t1)
-    # dir = r'C:\Users\aide0\OneDrive - The Ohio State University\data\2016_scivis_fpm\0.44\run34\002.vtu'
-    # data = data_reader(dir)
-    # data = data_to_numpy(data)
-    # coord = data[:,:3]
-    # attr = data[:,3:]
-    # print(len(coord))
-    # # attr = (attr - self.mean)/self.std
-    # # attr_dim = attr.shape[1]
-
-    # # sys.setrecursionlimit(10000000)
-    # attr_kd = KDTree(attr,30000)
-    # print(attr_kd.tree)
-    # children = all_leaf_nodes(attr_kd.tree)
-    # for child in children:
-    #     print(len(collect_children(child)))
-    # # nodes = nodes_at_level(attr_kd.tree,4)
-    # # print("number_of_sample:",len(nodes))
-    # # print(np.min(attr[:,1]),np.max(attr[:,1]))
-    # # nodes = nodes_at_level(attr_kd.tree,cut_level)
-    # data = np.load("data/new_sample.npy", allow_pickle=True)
-    # print(data[0][0])
-    # i = 0
-    # for datum in data:
-    #     center = np.mean(datum[:,:3],axis=0)
-    #     datum[:,:3] -= center
-    #     i+=1
-    #     print("{}/{}".format(i,len(data)),end='\r')
-    # np.save("new_sample",data)
-    
