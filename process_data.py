@@ -4,7 +4,7 @@ import sys
 import math
 import time
 
-from vtk import *
+from vtkmodules.all import vtkXMLUnstructuredGridReader
 from vtkmodules.util import numpy_support
 import numpy as np
 from matplotlib import pyplot as plt
@@ -14,15 +14,14 @@ from scipy.spatial import KDTree
 from multiprocessing import Pool
 import torch
 from torch.utils.data import Dataset
-from vincenty_cuda_nns import CudaTree
+from yt.utilities.sdf import SDFRead
 
 def func(d):
     return d[1].query(d[0],25)
 
 class FPM(Dataset):
-    def __init__(self,directory):
-        data = data_reader(directory)
-        data = data_to_numpy(data)
+    def __init__(self,file_name):
+        data = vtk_reader(file_name)
         mean = [2.39460057e+01, -4.29336209e-03, 9.68809421e-04, 3.44706680e-02]
         std = [55.08245731,  0.32457581,  0.32332313,  0.6972805]
         data[:,:2] /= 5
@@ -53,6 +52,12 @@ def wrap_data(data):
         data[:,:,:25],
     ]
 
+class Cosmology():
+    def __init__(self):
+        pass
+
+
+
 class Generator():
     """
     generate dataset from the raw data directory
@@ -61,14 +66,7 @@ class Generator():
         """
         generate random file list
         """
-        file_list = []
-        for (dirpath, dirnames, filenames) in os.walk(directory):
-            for filename in filenames:
-                if filename.endswith('.vtu'):
-                    inp = os.sep.join([dirpath, filename])
-                    file_list.append(inp)
-        random.shuffle(file_list)
-        self.file_list = file_list
+
         self.mean = mean
         self.std = std
 
@@ -292,12 +290,28 @@ def image_to_pointcloud(img, point_size = 1024):
     return points
 
 
-def data_reader(filename):
+def vtk_reader(filename):
     reader = vtkXMLUnstructuredGridReader()
     reader.SetFileName(filename)
     reader.Update()
-    data = reader.GetOutput()
-    return data
+    vtk_data = reader.GetOutput()
+    coord = numpy_support.vtk_to_numpy(vtk_data.GetPoints().GetData())
+    concen = numpy_support.vtk_to_numpy(vtk_data.GetPointData().GetArray(0))[:,None]
+    velocity = numpy_support.vtk_to_numpy(vtk_data.GetPointData().GetArray(1))
+    point_data = np.concatenate((coord,concen,velocity),axis=-1)
+    return point_data
+
+def sdf_reader(filename):
+    particles = SDFRead(filename)
+    h_100 = particles.parameters['h_100']
+    width = particles.parameters['L0']
+    cosmo_a = particles.parameters['a']
+    kpc_to_Mpc = 1./1000
+    convert_to_cMpc = lambda proper: (proper ) * h_100 * kpc_to_Mpc / cosmo_a + 31.25
+    numpy_data = np.array(list(particles.values())[2:-1]).T
+    numpy_data[:,:3] = convert_to_cMpc(numpy_data[:,:3])
+    return numpy_data
+
 
 def sample_around(idx, data,k = 128, r=0.5, dim = 4, mode='ball'):
     """
@@ -352,13 +366,15 @@ def sample_all_from_file(filename,k = 128, r=0.5, dim = 4, mode='ball'):
 
     return sample
     
-def data_to_numpy(vtk_data):
-    coord = numpy_support.vtk_to_numpy(vtk_data.GetPoints().GetData())
-    concen = numpy_support.vtk_to_numpy(vtk_data.GetPointData().GetArray(0))[:,None]
-    velocity = numpy_support.vtk_to_numpy(vtk_data.GetPointData().GetArray(1))
-    point_data = np.concatenate((coord,concen,velocity),axis=-1)
-    return point_data
-
+def normalize(data,coord_dim=3,kept_dim=4,mean=[ -2.46606519e+03, -2.76064209e+03, -2.58863428e+03, -1.71356348e+04, -2.00398145e+04, -2.00960469e+04, -6.92802200e+06] \
+    ,std=[ 2.78081812e+03, 2.97912305e+03, 2.69918921e+03, 1.93245723e+04, 2.00338730e+04, 1.79736328e+04, 6.38445625e+05]):
+    #treat std as max, mean as min
+    mean = np.array(mean)
+    std = np.array(std)
+    tensor_list = []
+    assert len(mean) == kept_dim-coord_dim
+    data[:,coord_dim:kept_dim] = (data[:,coord_dim:kept_dim] - mean)/(std-mean)
+    return data
 
 def nodes_at_level(root,level):
     # finding all nodes on the level
@@ -391,3 +407,15 @@ def mean_sub(data,dim=3):
     mean = np.mean(data[:,:dim],axis = 0)
     data[:,:dim] -= mean
     return data
+
+def shuffler(directory):
+    """
+    shuffle the files in the directory and return the file list
+    """
+    file_list = []
+    for (dirpath, dirnames, filenames) in os.walk(directory):
+        for filename in filenames:
+            inp = os.sep.join([dirpath, filename])
+            file_list.append(inp)
+    random.shuffle(file_list)
+    return file_list

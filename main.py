@@ -15,7 +15,7 @@ import vtk
 from vtk import *
 from vtk.util import numpy_support
 
-from model.vae import VAE
+from model import VAE
 from process_data import *
 from latent_max import LatentMax
 from mean_shift import *
@@ -116,12 +116,12 @@ if __name__ == "__main__":
         print('Model loaded from {}'.format(args.load))
 
     if args.phase == 1:
+        #inference
         data_directory = os.path.join(data_path,"run41/030.vtu")
-        data = data_reader(data_directory)
-        data = data_to_numpy(data)
+        data = vtk_reader(data_directory)
         data = data[:,:4]
         data[:,3] = (data[:,3]-2.39460057e+01)/55.08245731
-        idx = torch.load("./run41_030/saved_idx")
+        idx = torch.load("./results/run41_030/saved_idx")
 
         model.eval()
         with torch.no_grad():
@@ -150,9 +150,46 @@ if __name__ == "__main__":
                 # plt.show()
                 # scatter_3d(pc1)
                 # scatter_3d(pc2)
-            torch.save(latent_all,"latent_all")
+            torch.save(latent_all,"results/run41_030/notrain_latent")
     elif args.phase == 0:
+        # train
         loader = Loader(data_file,args.batch_size)
         for epoch in range(1, args.epochs + 1):
             train(epoch)
             test(epoch)
+
+    elif args.phase == 2:
+        #inference
+        data_directory = os.environ['data'] + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
+        data = sdf_reader(data_directory)
+        data = normalize(data,3,10)
+        idx = np.load("./04900.npy")
+
+        model.eval()
+        with torch.no_grad():
+            latent_all = torch.zeros((0,args.vector_length))
+            for i in range(0,len(data),args.batch_size):
+                ix = idx[i:i+args.batch_size]
+                tensor_list = []
+                for x in ix:
+                    numpy_datum = data[x]
+                    numpy_datum[:,:3] -= np.mean(numpy_datum[:,:3],0,keepdims=True)
+                    tensor = torch.from_numpy(numpy_datum).float().cuda()
+                    tensor_list.append(tensor)
+                latent = model.encode(tensor_list)
+                latent_all = torch.cat((latent_all,latent.detach().cpu()),0)
+                print(latent_all.shape)
+                # recon_batch = model(tensor_list)
+                # pc1 = tensor_list[11].cpu()
+                # pc2 = recon_batch[11].cpu()
+                # pca = PCA(n_components=2)
+                # pca.fit(np.concatenate((pc1,pc2),axis=0))
+                # pc1_embedded = pca.transform(pc1)
+                # pc2_embedded = pca.transform(pc2)
+                # plt.scatter(pc1_embedded[:,0],pc1_embedded[:,1])
+                # plt.show()
+                # plt.scatter(pc2_embedded[:,0],pc2_embedded[:,1])
+                # plt.show()
+                # scatter_3d(pc1)
+                # scatter_3d(pc2)
+            torch.save(latent_all,"notrain_49")

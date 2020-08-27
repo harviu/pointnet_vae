@@ -3,8 +3,9 @@ __pycache__/
 *.pth
 *.o*[0-9]
 data/
-result/
-result_*/
+result*/
+state*/
+log*/
 *.log
 images/
 run*/

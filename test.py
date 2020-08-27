@@ -14,22 +14,46 @@ from multiprocessing import Pool
 
 import numpy as np
 
-from model.vae import VAE
-from model.dgcnn import SSAE
-from process_data import FPM,wrap_data
+from model import VAE
+from process_data import *
+from vtkmodules.all import *
 
-from scipy.spatial import KDTree
+from scipy.spatial.ckdtree import cKDTree
 import os
 import time
 import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans,DBSCAN
 import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from vincenty_cuda_nns import CudaTree
+from thingking import loadtxt
 
+def vtk_write(position:np.array,array_dict:dict,filename:str):
+    vtk_position = numpy_support.numpy_to_vtk(position)
+    points = vtkPoints()
+    points.SetData(vtk_position)
+    data_save = vtkUnstructuredGrid()
+    data_save.SetPoints(points)
+    pd = data_save.GetPointData()
+    for k, v in array_dict.items():
+        vtk_array = numpy_support.numpy_to_vtk(v)
+        vtk_array.SetName(k)
+        pd.AddArray(vtk_array)
+    writer = vtkXMLDataSetWriter()
+    writer.SetFileName(filename)
+    writer.SetInputData(data_save)
+    writer.Write()
+
+
+def knn(x, k):
+    inner = -2*torch.matmul(x.transpose(2, 1), x)
+    xx = torch.sum(x**2, dim=1, keepdim=True)
+    pairwise_distance = -xx - inner - xx.transpose(2, 1)
+ 
+    idx = pairwise_distance.topk(k=k, dim=-1)[1]   # (batch_size, num_points, k)
+    return idx
 
 def func(d):
     return d[1].query_ball_point(d[0],0.7)
@@ -43,21 +67,68 @@ if __name__ == "__main__":
         data_path = './data/'
 
     
-    data_directory = os.path.join(data_path,"run41/030.vtu")
-    data = data_reader(data_directory)
-    data = data_to_numpy(data)
-    data = data[:,:4]
-    latent = torch.load("run41_030/latent_all")
+    # ID, DescID, Mvir, Vmax, Vrms, Rvir, Rs, Np, x, y, z, VX, VY, VZ, JX, JY, JZ, Spin, rs_klypin, Mvir_all, M200b, M200c, M500c, M2500c, Xoff, Voff, spin_bullock, b_to_a, c_to_a, A_x_, A_y_, A_z_, b_to_a_500c_, c_to_a_500c_, A_x__500c_, A_y__500c_, A_z__500c_, TU, M_pe_Behroozi, M_pe_Diemer = \
+    #     loadtxt(os.environ['data']+"/ds14_scivis_0128/rockstar/out_{:d}.list".format(49-2), unpack=True)
+    # center = np.array((x,y,z)).T
+    # data_save = vtkUnstructuredGrid()
+    # data_save.SetPoints(points)
+    # print(data_save)
 
+    # data_directory = os.environ['data'] + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
+    # data = sdf_reader(data_directory)
+    # data = normalize(data,3,10)
+
+    # attr = torch.load("results/run41_030/notrain_latent")
+    # km = KMeans(4,n_init=10)
+    # res = km.fit_predict(attr)
+    # np.save("kmean_result",res)
+    # res = np.load("kmean_result.npy")
+
+    # numpy_data = data
+
+    ###############################
+    t1 = time.time()
+    # kd = cKDTree(data[:,:3],256)
+    for i in range(int(200/20)):
+        t = torch.rand((1,7,20000),dtype=torch.float32,device="cpu")
+        knn(t,256)
+        
+    print(time.time()-t1)
+    ################################
+    ################################
+    # t1 = time.time()
+    # # pool = Pool(8)
+    # # idx = pool.map(func,zip(data[:,:3],[kd]*len(data)))
+    # knn = kd.query(data[:,:3],256)
+    # print(time.time()-t1)
+    ################################
+    # np.save("01200",knn[1])
+
+    # idx = np.load("./data/new.npy")
+    # print(idx[0,:,7:])
 
     ################# kmeans ##################
-    # km = KMeans(4,n_init=10)
+    # data_directory = os.path.join(data_path,"run41/030.vtu")
+    # data = vtk_reader(data_directory)
+    # latent = torch.load("results/run41_030/latent_all")
+    # km = KMeans(8,n_init=10)
     # res = km.fit_predict(latent)
-    # np.save("run41_030/kmean_result",res)
-    res = np.load("run41_030/kmean_result.npy")
+    # print(data.shape,res.shape)
+    # print(np.max(res))
+
+    # array_dict = {
+    #     "cluster": res,
+    #     "concentration":data[:,3],
+    #     "velocity":data[:,4:],
+    # }
+
+    # vtk_write(data[:,:3],array_dict,"results/run41_030/030_cluster.vtu")
+
     # cluster = []
     # for i in range(4):
     #     cluster.append(data[res==i,:])
+    #     scatter_3d(cluster[i])
+
 
     # cluster_show = cluster[0]
     # sli = np.logical_and(cluster_show[:,2]>7.9, cluster_show[:,2]<8.0)
@@ -79,15 +150,12 @@ if __name__ == "__main__":
     
     # plt.show()
 
-    # for i in range(4):
-    #     print(np.sum(res==i))
-    #     scatter_3d(data[res==i,:])
 
     ############### parallel coordinates #############
-    lat = np.concatenate((latent,res[:,None]),1)
-    df = pd.DataFrame(data=lat[::100])
-    pd.plotting.parallel_coordinates(df,class_column=16,color=('red', 'green', 'blue','yellow'))
-    plt.show()
+    # lat = np.concatenate((latent,res[:,None]),1)
+    # df = pd.DataFrame(data=lat[::100])
+    # pd.plotting.parallel_coordinates(df,class_column=16,color=('red', 'green', 'blue','yellow'))
+    # plt.show()
 
     ################ tsne #################
     # tsn = TSNE(2)
@@ -321,20 +389,3 @@ if __name__ == "__main__":
     # print(data.shape)
 
 
-    ###############################
-    # t1 = time.time()
-    # kd = KDTree(data[:,:3])
-    # print(time.time()-t1)
-    # ################################
-    # ################################
-    # t1 = time.time()
-    # pool = Pool(8)
-
-    # idx = pool.map(func,zip(data[:,:3],[kd]*len(data)))
-    # torch.save(idx,"saved_idx")
-    # print(time.time()-t1)
-    ################################
-    # circle = data[idx[0]]
-    # print(idx)
-    # scatter_3d(circle)
-    # print(np.mean(circle[circle[:,3]>50],0))
