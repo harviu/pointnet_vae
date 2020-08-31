@@ -25,10 +25,13 @@ import numpy as np
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans,DBSCAN
+from annoy import AnnoyIndex
 import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from thingking import loadtxt
+from pynndescent import NNDescent
+from sklearn.neighbors import NearestNeighbors
 
 def vtk_write(position:np.array,array_dict:dict,filename:str):
     vtk_position = numpy_support.numpy_to_vtk(position)
@@ -66,6 +69,17 @@ if __name__ == "__main__":
     except KeyError:
         data_path = './data/'
 
+    # data_directory = os.path.join(data_path,"run41/030.vtu")
+    # data_directory = os.path.join("./data/020.vtu")
+    # data = vtk_reader(data_directory)
+    # print(data.shape)
+    # fpm = FPM(data_directory,"ball")
+    # loader = DataLoader(fpm, batch_size=32, shuffle=True, drop_last=False)
+    # for i in loader:
+    #     print(i.shape)
+    # data_directory = os.environ['data'] + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
+    # data = sdf_reader(data_directory)
+    # data = normalize(data,3,10)
     
     # ID, DescID, Mvir, Vmax, Vrms, Rvir, Rs, Np, x, y, z, VX, VY, VZ, JX, JY, JZ, Spin, rs_klypin, Mvir_all, M200b, M200c, M500c, M2500c, Xoff, Voff, spin_bullock, b_to_a, c_to_a, A_x_, A_y_, A_z_, b_to_a_500c_, c_to_a_500c_, A_x__500c_, A_y__500c_, A_z__500c_, TU, M_pe_Behroozi, M_pe_Diemer = \
     #     loadtxt(os.environ['data']+"/ds14_scivis_0128/rockstar/out_{:d}.list".format(49-2), unpack=True)
@@ -74,33 +88,39 @@ if __name__ == "__main__":
     # data_save.SetPoints(points)
     # print(data_save)
 
-    # data_directory = os.environ['data'] + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
-    # data = sdf_reader(data_directory)
-    # data = normalize(data,3,10)
 
-    # attr = torch.load("results/run41_030/notrain_latent")
+    # attr = torch.load("results/new_model/latent")
     # km = KMeans(4,n_init=10)
     # res = km.fit_predict(attr)
-    # np.save("kmean_result",res)
+    # np.save("results/new_model/kmean_result",res)
     # res = np.load("kmean_result.npy")
 
     # numpy_data = data
 
     ###############################
-    t1 = time.time()
-    # kd = cKDTree(data[:,:3],256)
-    for i in range(int(200/20)):
-        t = torch.rand((1,7,20000),dtype=torch.float32,device="cpu")
-        knn(t,256)
+    # t1 = time.time()
+    # kd = NearestNeighbors(256,algorithm="kd_tree",leaf_size=30,n_jobs=8)
+    # kd.fit(data[:,:3])
+    # kd = cKDTree(data[:,:3],30)
+    # for i in range(int(200/20)):
+    #     t = torch.rand((1,7,20000),dtype=torch.float32,device="cpu")
+    #     knn(t,256)
+    # kd = AnnoyIndex(3,'euclidean')
+    # for i in range(len(data)):
+    #     kd.add_item(i,data[i,:3])
+    # kd.build(1)
         
-    print(time.time()-t1)
+    # print(time.time()-t1)
     ################################
     ################################
     # t1 = time.time()
+    # for i in range(len(data)):
+    #     kd.get_nns_by_item(i,256)
     # # pool = Pool(8)
     # # idx = pool.map(func,zip(data[:,:3],[kd]*len(data)))
-    # knn = kd.query(data[:,:3],256)
+    # knn = kd.query_ball_point(data[:,:3],0.7,n_jobs=16)
     # print(time.time()-t1)
+    # print(knn)
     ################################
     # np.save("01200",knn[1])
 
@@ -108,10 +128,9 @@ if __name__ == "__main__":
     # print(idx[0,:,7:])
 
     ################# kmeans ##################
-    # data_directory = os.path.join(data_path,"run41/030.vtu")
-    # data = vtk_reader(data_directory)
-    # latent = torch.load("results/run41_030/latent_all")
-    # km = KMeans(8,n_init=10)
+    # latent = torch.load("results/new_model/latent")
+    # data = data[:len(latent)]
+    # km = KMeans(4,n_init=10)
     # res = km.fit_predict(latent)
     # print(data.shape,res.shape)
     # print(np.max(res))
@@ -122,7 +141,7 @@ if __name__ == "__main__":
     #     "velocity":data[:,4:],
     # }
 
-    # vtk_write(data[:,:3],array_dict,"results/run41_030/030_cluster.vtu")
+    # vtk_write(data[:,:3],array_dict,"results/new_model/030_cluster.vtu")
 
     # cluster = []
     # for i in range(4):

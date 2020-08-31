@@ -3,7 +3,7 @@ import numpy as np
 
 import torch
 from torch import optim
-from process_data import prepare_for_model,scatter_3d
+from process_data import *
 
 
 class LatentMax():
