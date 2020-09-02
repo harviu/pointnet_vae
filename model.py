@@ -6,17 +6,17 @@ import random
 
 
 class AE(nn.Module):
-    def __init__(self,vector_length,channel,mode="knn",pred_num=256):
+    def __init__(self,args):
         """
         input size: B * N * C
         """
         super(AE, self).__init__()
-        self.vector_length = vector_length
-        self.num_channel = channel
-        self.prediction_num = pred_num
-        self.mode = mode
+        self.vector_length = args.vector_length
+        self.num_channel = args.dim
+        self.prediction_num = args.k
+        self.mode = args.mode
         self.pointnet = nn.Sequential(
-            nn.Linear(channel,64),
+            nn.Linear(self.num_channel,64),
             nn.BatchNorm1d(64),
             nn.LeakyReLU(),
 
@@ -43,10 +43,10 @@ class AE(nn.Module):
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(),
 
-            nn.Linear(1024,self.prediction_num * channel),
+            nn.Linear(1024,self.prediction_num * self.num_channel),
         )
 
-    def encode(self,x,mask):
+    def encode(self,x,mask=None):
         batch_size = len(x)
         n_points = x.shape[1]
         n_channel = self.num_channel

@@ -4,7 +4,7 @@ import sys
 import math
 import time
 
-from vtkmodules.all import vtkXMLUnstructuredGridReader
+from vtk import *
 from vtkmodules.util import numpy_support
 import numpy as np
 from matplotlib import pyplot as plt
@@ -31,7 +31,11 @@ def balance_sampler(data,num):
     
 
 class PointData(Dataset):
-    def __init__(self,file_name,source,mode,k,r,sampler=all_sampler):
+    def __init__(self,file_name,args,sampler=all_sampler):
+        source = args.source
+        mode = args.mode
+        k = args.k
+        r = args.r
         if source == "fpm":
             data = vtk_reader(file_name)
             mean = [0, 0, 5, 23.9, 0, 0, 0.034]
@@ -180,3 +184,18 @@ def std(file_list,mean,mode="fpm"):
     print("std: ", std)
     return std
 
+def vtk_write(position:np.array,array_dict:dict,filename:str):
+    vtk_position = numpy_support.numpy_to_vtk(position)
+    points = vtkPoints()
+    points.SetData(vtk_position)
+    data_save = vtkUnstructuredGrid()
+    data_save.SetPoints(points)
+    pd = data_save.GetPointData()
+    for k, v in array_dict.items():
+        vtk_array = numpy_support.numpy_to_vtk(v)
+        vtk_array.SetName(k)
+        pd.AddArray(vtk_array)
+    writer = vtkXMLDataSetWriter()
+    writer.SetFileName(filename)
+    writer.SetInputData(data_save)
+    writer.Write()

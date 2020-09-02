@@ -31,12 +31,15 @@ def inference(pd,model,batch_size,args):
                 latent = model.encode(data,mask) 
             latent_all = torch.cat((latent_all,latent.detach().cpu()),0)
             print("processed",i+1,"/",len(loader))
+    return latent_all
 
 if __name__ == "__main__":
     # input parsing
     parser = argparse.ArgumentParser(description='PointNet')
     parser.add_argument('--batch-size', type=int, default=32, metavar='N',
                         help='input batch size for training (default: 128)')
+    parser.add_argument('--sample-size', type=int, default=1000, metavar='N',
+                        help='sample size per file (default: 1000)')
     parser.add_argument('--epochs', type=int, default=10, metavar='N',
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
@@ -59,6 +62,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', dest='source', type=str, default="fpm", help='data source')
     parser.add_argument('-k', dest='k', type=int, default=256, help='k in knn')
     parser.add_argument('-r', dest='r', type=float, default=0.2, help='r in ball query')
+    # parser.add_argument('--recon-length', dest='recon_length', type=int, default=256, help='r in ball query')
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
     args.mode = "ball" if args.ball else 'knn'
@@ -71,7 +75,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if args.cuda else "cpu")
     kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
 
-    model = AE(args.vector_length,args.dim,args.mode,256).float().to(device)
+    model = AE(args).float().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
     loss_function = model.loss
 
@@ -79,7 +83,7 @@ if __name__ == "__main__":
         state_dict = torch.load(args.load)
         state = state_dict['state']
         config = state_dict['config']
-        print(config)
+        args = config
         model.load_state_dict(state)
         print('Model loaded from {}'.format(args.load))
 
@@ -91,10 +95,11 @@ if __name__ == "__main__":
         elif args.source == "cos":
             file_list = collect_file(data_path+"/ds14_scivis_0128/raw",args.source,shuffle=True)
         for epoch in range(1, args.epochs + 1):
-            for f in file_list:
+            for i,f in enumerate(file_list):
                 print("file in process: ",f)
-                bs = lambda data: balance_sampler(data,10000)
-                pd = PointData(f,args.source,args.mode,args.k,args.r,bs)
+                print("file processed {}/{}".format(i,len(file_list)))
+                bs = lambda data: balance_sampler(data,args.sample_size)
+                pd = PointData(f,args,bs)
                 loader = DataLoader(pd, batch_size=args.batch_size, shuffle=True, drop_last=True)
                 model.train()
                 train_loss = 0
@@ -133,8 +138,4 @@ if __name__ == "__main__":
                 }
                 torch.save(save_dict,'states/CP{}.pth'.format(epoch))
                 print('Checkpoint {} saved !'.format(epoch))
-    elif args.phase == 1:
-        sampler = lambda x:[1,2,3]
-        pd = PointData(r'D:\OneDrive - The Ohio State University\data/2016_scivis_fpm/0.44/run03/\025.vtu',args.source,args.mode,args.k,args.r,sampler)
-        inference(pd,model,128,config)
 
