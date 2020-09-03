@@ -4,7 +4,7 @@ import sys
 import math
 import time
 
-from vtk import *
+from vtkmodules.all import *
 from vtkmodules.util import numpy_support
 import numpy as np
 from matplotlib import pyplot as plt
@@ -184,7 +184,7 @@ def std(file_list,mean,mode="fpm"):
     print("std: ", std)
     return std
 
-def vtk_write(position:np.array,array_dict:dict,filename:str):
+def numpy_to_vtk(position:np.array,array_dict:dict):
     vtk_position = numpy_support.numpy_to_vtk(position)
     points = vtkPoints()
     points.SetData(vtk_position)
@@ -195,6 +195,9 @@ def vtk_write(position:np.array,array_dict:dict,filename:str):
         vtk_array = numpy_support.numpy_to_vtk(v)
         vtk_array.SetName(k)
         pd.AddArray(vtk_array)
+    return data_save
+
+def vtk_write(data_save,filename:str):
     writer = vtkXMLDataSetWriter()
     writer.SetFileName(filename)
     writer.SetInputData(data_save)

@@ -1,8 +1,8 @@
 #! /usr/bin/env python
 
 import vtk
-from vtk import *
-from vtk.util import numpy_support
+from vtkmodules.all import *
+from vtkmodules.util import numpy_support
 import sys, os, numpy
 
 
@@ -75,7 +75,11 @@ def text_actor():
 def particles_actor(reader,camera):
     aa = vtkAssignAttribute()
     aa.Assign("concentration", vtkDataSetAttributes.SCALARS, vtkAssignAttribute.POINT_DATA)
-    aa.SetInputConnection(reader.GetOutputPort())
+    if isinstance(reader,vtkXMLDataReader):
+        aa.SetInputConnection(reader.GetOutputPort())
+    else:
+        aa.SetInputData(reader)
+    
 
     mask = vtkMaskPoints()
     mask.SetOnRatio(1)
@@ -85,7 +89,7 @@ def particles_actor(reader,camera):
 
     threshold = vtkThreshold()
     threshold.SetInputConnection(mask.GetOutputPort())
-    threshold.ThresholdByUpper(50)
+    threshold.ThresholdByUpper(0)
     # threshold.ThresholdByLower(2)
 
     geom = vtkGeometryFilter()
@@ -104,7 +108,6 @@ def particles_actor(reader,camera):
     mapper = vtkDataSetMapper()
     mapper.SetInputConnection(sort.GetOutputPort())
     mapper.SetLookupTable(lut)
-    # mapper.SetScalarRange(0, 2)
     mapper.SetScalarRange(0, 350)
     mapper.SetScalarModeToUsePointData()
     mapper.ScalarVisibilityOn()
@@ -118,7 +121,7 @@ def particles_actor(reader,camera):
 
     return actor
 
-def show(filename):
+def load_show(filename):
     camera = vtkCamera()
     camera.SetPosition(0, -25.0, 12.5)
     camera.SetFocalPoint(0, 0, 4.1)
@@ -143,8 +146,6 @@ def show(filename):
     renWinInter = vtkRenderWindowInteractor()
     renWinInter.SetRenderWindow(window)
 
-    outfile = os.path.splitext(filename)[0]
-
     reader.SetFileName(filename)
     reader.Update()
 
@@ -158,6 +159,40 @@ def show(filename):
     window.Render()
     renWinInter.Start()
 
+def show(data,outfile="test"):
+    camera = vtkCamera()
+    camera.SetPosition(0, -25.0, 12.5)
+    camera.SetFocalPoint(0, 0, 4.1)
+
+    renderer = vtkRenderer()
+    renderer.SetBackground(0, 0, 0)
+    renderer.SetActiveCamera(camera)
+
+    renderer.AddActor(particles_actor(data,camera))
+    renderer.AddActor(cylinder_actor())
+    # renderer.AddActor(ball_actor())
+    renderer.AddActor(text_actor())
+
+    window = vtkRenderWindow()
+    window.PointSmoothingOn()
+    window.SetSize(512, 512)
+    # window.SetOffScreenRendering(1)
+    window.AddRenderer(renderer)
+
+    renWinInter = vtkRenderWindowInteractor()
+    renWinInter.SetRenderWindow(window)
+
+    window.Render()
+    # renWinInter.Start()
+
+    wtif = vtkWindowToImageFilter()
+    wtif.SetInput(window)
+    wtif.Update()
+
+    pngwriter = vtkPNGWriter()
+    pngwriter.SetInputConnection(wtif.GetOutputPort())
+    pngwriter.SetFileName(outfile + '.png')
+    pngwriter.Write()
 
 
 if __name__ =="__main__":
@@ -167,4 +202,4 @@ if __name__ =="__main__":
     #     print('usage:' + sys.argv[0] + "<file1>.vtu [<file2>.vtu ...]")
     #     print()
     #     sys.exit(0)
-    show(r"D:\OneDrive - The Ohio State University\data\2016_scivis_fpm\0.44\run01\020.vtu")
+    load_show(r"D:\OneDrive - The Ohio State University\data\2016_scivis_fpm\0.44\run01\020.vtu")

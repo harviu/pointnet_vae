@@ -24,6 +24,7 @@ import pandas
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from thingking import loadtxt
+from simple import show
 
 class Node():
     def __init__(self,value):
@@ -33,24 +34,24 @@ class Node():
 
 def traverse(node:Node):
     idx = node.value
-    scatter_3d(data[idx])
+    res[idx] = node.idx
     if node.left is not None:
         traverse(node.left)
     if node.right is not None:
         traverse(node.right)
     
-
-def hierk(node:Node):
+def hierk(node:Node,level=0):
     idx = node.value
+    node.level=level
     if len(idx)<20000:
         return node
     else:
-        km = KMeans(2,n_init=10)
+        km = KMeans(2,n_init=10,n_jobs=-1)
         res = km.fit_predict(latent[idx])
         n1 = Node(idx[res==0])
         n2 = Node(idx[res==1])
-        node.left = hierk(n1)
-        node.right = hierk(n2)
+        node.left = hierk(n1,level+1)
+        node.right = hierk(n2,level+1)
         return node
 
 
@@ -63,51 +64,80 @@ if __name__ == "__main__":
     # data_directory = data_path+"/2016_scivis_fpm/0.44/run41/024.vtu"
     data_directory = os.environ['data'] + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
     # data_directory = os.path.join("./data/020.vtu")
-    state_dict = torch.load("states/cos_knn256_dim10_vec64_CP10.pth")
+    # state_dict = torch.load("states_saved/fpm_knn256_dim4_CP10.pth")
+    state_dict = torch.load("states_saved/cos_knn256_dim10_vec64_CP10.pth")
     state = state_dict['state']
     args = state_dict['config']
     # args.recon_length = 256
     print(args)
+    sampler = lambda data:np.arange(len(data))
     pd = PointData(data_directory,args)
     model = AE(args).float().cuda()
     model.load_state_dict(state)
-    # latent = inference(pd,model,256,args)
-    # torch.save(latent,"cos_latent")
-    # print(latent.shape)
+    latent = inference(pd,model,256,args)
+    torch.save(latent,"latent")
+    print(latent.shape)
 
     
 
     ################# kmeans ##################
-    latent = torch.load("cos_latent")
+    latent = torch.load("latent")
     # data = vtk_reader(data_directory)
     data = sdf_reader(data_directory)
+
     # root = Node(np.arange(len(latent)))
     # hierk(root)
-    # print(root)
-    # traverse(root)
+    # node_list = [root]
+    # save_idx = []
+    # idx = 0
+    # while(len(node_list)>0):
+    #     node = node_list.pop(0)
+    #     if node is not None:
+    #         print(idx,node.level)
+    #         if node.level==5 and (idx==16 or idx==18):
+    #             save_idx+=list(node.value)
+    #         # sub_data = data[node.value]
+    #         # array_dict = {
+    #         #     "concentration":sub_data[:,3],
+    #         #     "velocity":sub_data[:,4:],
+    #         # }
+    #         # vtk_data = numpy_to_vtk(sub_data[:,:3],array_dict)
+    #         # show(vtk_data,outfile="{}_{}".format(node.level,idx))
+    #         node.idx = idx
+    #         node_list.append(node.left)
+    #         node_list.append(node.right)
+    #     idx += 1
+    # # traverse(root)
     km = KMeans(5,n_init=10,n_jobs=-1)
     res = km.fit_predict(latent)
+    # res = np.zeros((len(data)),dtype=np.int)
+    # res[save_idx] = 1
+    # data = data[save_idx]
+    # np.save("interesting_cluster",data)
+    # data = np.load("interesting_cluster.npy")
+    # print(len(data))
+    # db = DBSCAN(0.44,30)
+    # res2 = db.fit_predict(data[:,:3])
+    # res2 = res2.astype(np.long)
+    # print(max(res2))
+
 
     array_dict = {
         "cluster": res,
         "concentration":data[:,3],
         "velocity":data[:,4:],
     }
+    vtk_data = numpy_to_vtk(data[:,:3],array_dict)
 
-    vtk_write(data[:,:3],array_dict,"cos.vtu")
-
-    # cluster = []
-    # for i in range(20):
-    #     cluster.append(data[res==i,:])
-    #     print(len(cluster[i]))
-    #     scatter_3d(cluster[i])
+    # show(vtk_data)
+    vtk_write(vtk_data,"test.vtu")
 
 
     ############### parallel coordinates #############
-    lat = np.concatenate((latent,res[:,None]),1)
-    df = pandas.DataFrame(data=lat[::100])
-    pandas.plotting.parallel_coordinates(df,class_column=16,color=('red', 'green', 'blue','yellow'))
-    plt.show()
+    # lat = np.concatenate((latent,res[:,None]),1)
+    # df = pandas.DataFrame(data=lat[::100])
+    # pandas.plotting.parallel_coordinates(df,class_column=16,color=('red', 'green', 'blue','yellow'))
+    # plt.show()
 
     ################ tsne #################
     # tsn = TSNE(2)
