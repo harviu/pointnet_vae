@@ -4,7 +4,6 @@ from torch.nn import functional as F
 import numpy as np
 import random
 
-
 class AE(nn.Module):
     def __init__(self,args):
         """
@@ -15,6 +14,7 @@ class AE(nn.Module):
         self.num_channel = args.dim
         self.prediction_num = args.k
         self.mode = args.mode
+        self.have_label = args.have_label
         self.pointnet = nn.Sequential(
             nn.Linear(self.num_channel,64),
             nn.BatchNorm1d(64),
@@ -44,6 +44,21 @@ class AE(nn.Module):
             nn.LeakyReLU(),
 
             nn.Linear(1024,self.prediction_num * self.num_channel),
+        )
+
+        self.cls = nn.Sequential(
+            nn.BatchNorm1d(self.vector_length),
+            nn.LeakyReLU(),
+
+            nn.Linear(self.vector_length,self.vector_length),
+            nn.BatchNorm1d(self.vector_length),
+            nn.LeakyReLU(),
+
+            nn.Linear(self.vector_length,self.vector_length//2),
+            nn.BatchNorm1d(self.vector_length//2),
+            nn.LeakyReLU(),
+
+            nn.Linear(self.vector_length//2,2),
         )
 
     def encode(self,x,mask=None):
@@ -88,7 +103,10 @@ class AE(nn.Module):
 
     def forward(self, x, mask=None):
         z = self.encode(x, mask)
-        y = self.decode(z)
+        if self.have_label:
+            y = self.cls(z)
+        else:
+            y = self.decode(z)
         return y
 
 def nn_distance(pc1,pc2):

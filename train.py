@@ -18,20 +18,32 @@ def inference(pd,model,batch_size,args):
     model.eval()
     with torch.no_grad():
         latent_all = torch.zeros((0,args.vector_length),device="cpu")
+        predict_all = torch.zeros((0,2),device="cpu")
         for i, d in enumerate(loader):
-            if args.mode=="knn":
-                data = d
-            elif args.mode=="ball" :
-                data,mask = d
-                mask.cuda()
-            data = data[:,:,:args.dim].float().cuda()
+            if isinstance(d,list):
+                data = d[0][:,:,:args.dim].float().cuda()
+                if args.have_label:
+                    label = d[-1].cuda()
+                if args.mode=="ball" :
+                    mask = d[1].cuda()
+            else:
+                data = d[:,:,:args.dim].float().cuda()
             if args.mode=="knn":
                 latent = model.encode(data) 
+                if args.have_label:
+                    predict = model(data)
             elif args.mode=="ball":
                 latent = model.encode(data,mask) 
+                if args.have_label:
+                    predict = model(data,mask) 
             latent_all = torch.cat((latent_all,latent.detach().cpu()),0)
+            if args.have_label:
+                predict_all = torch.cat((predict_all,predict.detach().cpu()),0)
             print("processed",i+1,"/",len(loader))
-    return latent_all
+    if args.have_label:
+        return latent_all,predict_all
+    else:
+        return latent_all
 
 if __name__ == "__main__":
     # input parsing
@@ -44,6 +56,8 @@ if __name__ == "__main__":
                         help='number of epochs to train (default: 10)')
     parser.add_argument('--no-cuda', action='store_true', default=False,
                         help='enables CUDA training')
+    parser.add_argument('--have-label', action='store_true', default=False,
+                        help='have label for classification instead of autoencoder')
     parser.add_argument('-p', '--phase', type=int,default=0,dest="phase",
                         help='phase')
     # parser.add_argument('--seed', type=int, default=1, metavar='S',
@@ -77,7 +91,7 @@ if __name__ == "__main__":
 
     model = AE(args).float().to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    loss_function = model.loss
+    scheduler = optim.lr_scheduler.ExponentialLR(optimizer,0.85)
 
     if args.load:
         state_dict = torch.load(args.load)
@@ -98,25 +112,30 @@ if __name__ == "__main__":
             for i,f in enumerate(file_list):
                 print("file in process: ",f)
                 print("file processed {}/{}".format(i,len(file_list)))
-                bs = lambda data: balance_sampler(data,args.sample_size)
-                pd = PointData(f,args,bs)
+                pd = PointData(f,args,"partial")
                 loader = DataLoader(pd, batch_size=args.batch_size, shuffle=True, drop_last=True)
                 model.train()
                 train_loss = 0
                 print("number of samples: ",len(pd))
                 for i, d in enumerate(loader):
-                    if args.mode=="knn":
-                        data = d
-                    elif args.mode=="ball" :
-                        data,mask = d
-                        mask = mask.to(device)
-                    data = data[:,:,:args.dim].float().to(device)
+                    if isinstance(d,list):
+                        data = d[0][:,:,:args.dim].float().to(device)
+                        if args.have_label:
+                            label = d[-1].to(device)
+                        if args.mode=="ball" :
+                            mask = d[1].to(device)
+                    else:
+                        data = d[:,:,:args.dim].float().to(device)
                     optimizer.zero_grad()
                     if args.mode=="knn":
                         recon_batch = model(data) 
                     elif args.mode=="ball":
                         recon_batch = model(data,mask) 
-                    loss = loss_function(recon_batch, data)
+                    if args.have_label:
+                        loss_fn = nn.CrossEntropyLoss(reduction="mean")
+                        loss = loss_fn(recon_batch,label)
+                    else:
+                        loss = model.loss(recon_batch, data)
                     loss.backward()
                     train_loss += loss.item()
                     optimizer.step()
@@ -138,4 +157,5 @@ if __name__ == "__main__":
                 }
                 torch.save(save_dict,'states/CP{}.pth'.format(epoch))
                 print('Checkpoint {} saved !'.format(epoch))
+            scheduler.step()
 
