@@ -19,12 +19,6 @@ def ball_actor():
     actor = vtkActor()
     actor.SetMapper(mapper)
 
-    # transform = vtkTransform()
-    # transform.PostMultiply()
-    # transform.RotateX(90.0)
-    # transform.Translate(0, 0, 5)
-    # actor.SetUserTransform(transform)
-
     prop = actor.GetProperty()
     prop.SetOpacity(0.1)
 
@@ -33,9 +27,9 @@ def ball_actor():
 def cylinder_actor():
     cylinder = vtkCylinderSource()
     cylinder.SetCenter(0, 0, 0)
-    cylinder.SetHeight(10);
-    cylinder.SetRadius(5);
-    cylinder.SetResolution(100);
+    cylinder.SetHeight(10)
+    cylinder.SetRadius(5)
+    cylinder.SetResolution(100)
 
     mapper = vtkPolyDataMapper()
     mapper.SetInputConnection(cylinder.GetOutputPort())
@@ -52,6 +46,24 @@ def cylinder_actor():
 
     prop = actor.GetProperty()
     prop.SetOpacity(0.2)
+
+    return actor
+
+def cube_actor(c1,c2):
+    cube = vtkCubeSource()
+    x1,y1,z1 = c1
+    x2,y2,z2 = c2
+    cube.SetBounds(x1,x2,y1,y2,z1,z2)
+
+    mapper = vtkPolyDataMapper()
+    mapper.SetInputConnection(cube.GetOutputPort())
+
+    actor = vtkActor()
+    actor.SetMapper(mapper)
+
+    prop = actor.GetProperty()
+    prop.SetOpacity(0.2)
+    prop.SetColor(1.0, 0.0, 0.0)
 
     return actor
 
@@ -89,8 +101,8 @@ def particles_actor(reader,camera):
 
     threshold = vtkThreshold()
     threshold.SetInputConnection(mask.GetOutputPort())
-    threshold.ThresholdByUpper(0)
-    # threshold.ThresholdByLower(2)
+    threshold.ThresholdByUpper(20)
+    # threshold.ThresholdByLower(0)
 
     geom = vtkGeometryFilter()
     geom.SetInputConnection(threshold.GetOutputPort())
@@ -134,7 +146,6 @@ def load_show(filename):
 
     renderer.AddActor(particles_actor(reader,camera))
     renderer.AddActor(cylinder_actor())
-    # renderer.AddActor(ball_actor())
     renderer.AddActor(text_actor())
 
     window = vtkRenderWindow()
@@ -159,7 +170,7 @@ def load_show(filename):
     window.Render()
     renWinInter.Start()
 
-def show(data,outfile="test"):
+def show(data,c1,c2,outfile="test",show=True):
     camera = vtkCamera()
     camera.SetPosition(0, -25.0, 12.5)
     camera.SetFocalPoint(0, 0, 4.1)
@@ -170,7 +181,7 @@ def show(data,outfile="test"):
 
     renderer.AddActor(particles_actor(data,camera))
     renderer.AddActor(cylinder_actor())
-    # renderer.AddActor(ball_actor())
+    renderer.AddActor(cube_actor(c1,c2))
     renderer.AddActor(text_actor())
 
     window = vtkRenderWindow()
@@ -183,16 +194,17 @@ def show(data,outfile="test"):
     renWinInter.SetRenderWindow(window)
 
     window.Render()
-    # renWinInter.Start()
+    if show:
+        renWinInter.Start()
+    else:
+        wtif = vtkWindowToImageFilter()
+        wtif.SetInput(window)
+        wtif.Update()
 
-    wtif = vtkWindowToImageFilter()
-    wtif.SetInput(window)
-    wtif.Update()
-
-    pngwriter = vtkPNGWriter()
-    pngwriter.SetInputConnection(wtif.GetOutputPort())
-    pngwriter.SetFileName(outfile + '.png')
-    pngwriter.Write()
+        pngwriter = vtkPNGWriter()
+        pngwriter.SetInputConnection(wtif.GetOutputPort())
+        pngwriter.SetFileName(outfile + '.png')
+        pngwriter.Write()
 
 
 if __name__ =="__main__":

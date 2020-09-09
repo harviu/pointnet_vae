@@ -17,8 +17,8 @@ def inference(pd,model,batch_size,args):
     loader = DataLoader(pd, batch_size=batch_size, shuffle=False, drop_last=False)
     model.eval()
     with torch.no_grad():
-        latent_all = torch.zeros((0,args.vector_length),device="cpu")
-        predict_all = torch.zeros((0,2),device="cpu")
+        latent_all = torch.zeros((len(pd),args.vector_length),dtype=torch.float32,device="cpu")
+        predict_all = torch.zeros((len(pd),2),dtype=torch.float32,device="cpu")
         for i, d in enumerate(loader):
             if isinstance(d,list):
                 data = d[0][:,:,:args.dim].float().cuda()
@@ -30,15 +30,12 @@ def inference(pd,model,batch_size,args):
                 data = d[:,:,:args.dim].float().cuda()
             if args.mode=="knn":
                 latent = model.encode(data) 
-                if args.have_label:
-                    predict = model(data)
             elif args.mode=="ball":
                 latent = model.encode(data,mask) 
-                if args.have_label:
-                    predict = model(data,mask) 
-            latent_all = torch.cat((latent_all,latent.detach().cpu()),0)
             if args.have_label:
-                predict_all = torch.cat((predict_all,predict.detach().cpu()),0)
+                predict = model.cls(latent)
+                predict_all[i*batch_size:(i+1)*batch_size] = predict.detach().cpu()
+            latent_all[i*batch_size:(i+1)*batch_size] = latent.detach().cpu()
             print("processed",i+1,"/",len(loader))
     if args.have_label:
         return latent_all,predict_all
