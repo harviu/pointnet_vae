@@ -24,6 +24,7 @@ import pandas
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from simple import show
+from mean_shift import LatentRetriever
 
 
 
@@ -62,26 +63,36 @@ if __name__ == "__main__":
     except KeyError:
         data_path = './data/'
 
-    # data_directory = data_path+"/2016_scivis_fpm/0.44/run41/024.vtu"
+    data_directory = data_path+"/2016_scivis_fpm/0.44/run41/024.vtu"
     # data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
     # data_directory = os.path.join("./data/020.vtu")
-    # state_dict = torch.load("states_saved/fpm_knn256_dim4_CP10.pth")
-    state_dict = torch.load("states/CP35.pth")
+    state_dict = torch.load("states/CP1.pth")
+    # state_dict = torch.load("states_saved/cos_label_knn128_dim10_vec512_CP35.pth")
     state = state_dict['state']
     args = state_dict['config']
-    # args.recon_length = 256
     print(args)
-    pd = PointData(data_directory,args,"all")
-    label = pd.label
-    model = AE(args).float().cuda()
-    model.load_state_dict(state)
-    latent,predict = inference(pd,model,2000,args)
-    torch.save(latent,"latent")
-    torch.save(predict,"predict")
-    print(latent.shape)
+    # halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
+    data = vtk_reader(data_directory)
+    # pd = PointData(data,args,np.arange(len(data)))
+    # # label = pd.label
+    # model = AE(args).float().cuda()
+    # model.load_state_dict(state)
+    # latent = inference(pd,model,1500,args)
+    # torch.save(latent,"latent")
+    # torch.save(predict,"predict")
+    # print(latent.shape)
 
     ################# kmeans ##################
-    # latent = torch.load("latent")
+    latent = torch.load("latent")
+    print(latent.shape)
+    # pca = PCA(5)
+    # pca.fit(latent)
+    # with open("pca","wb") as f:
+    #     pickle.dump(pca,f)
+    # with open("pca","rb") as f:
+    #     pca = pickle.load(f)
+    # p = pca.transform(latent)
+    # print(p.shape)
     # predict = torch.load("predict")
     # predict = np.argmax(predict,1)
     # print(IoU(predict,label))
@@ -115,33 +126,33 @@ if __name__ == "__main__":
 
     # pca = PCA(64)
     # latent = pca.fit_transform(latent)
-    # km = KMeans(5,n_init=10,n_jobs=-1)
-    # res = km.fit_predict(latent)
+    km = KMeans(5,n_init=10,n_jobs=-1)
+    res = km.fit_predict(latent)
     # data = data
     # res = np.zeros((len(data)),dtype=np.int)
     # res[save_idx] = 1
     # data = data[save_idx]
     # np.save("interesting_cluster",data)
-    data = np.load("interesting_cluster.npy")
-    print(data.shape)
-    db = DBSCAN(0.44,30)
-    res2 = db.fit_predict(data[:,:3])
-    res2 = res2.astype(np.long)
-    print(res2.shape)
+    # data = np.load("interesting_cluster.npy")
+    # print(data.shape)
+    # db = DBSCAN(0.44,30)
+    # res2 = db.fit_predict(data[:,:3])
+    # res2 = res2.astype(np.long)
+    # print(res2.shape)
 
 
-    # array_dict = {
-    #     "cluster": res,
-    #     "phi":data[:,-1],
-    #     "velocity":data[:,3:6],
-    #     "acceleration":data[:,6:9],
-    #     # "concentration": data[:,3],
-    #     # "velocity": data[:,4:]
-    # }
-    # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
+    array_dict = {
+        "cluster": res,
+        # "phi":data[:,-1],
+        # "velocity":data[:,3:6],
+        # "acceleration":data[:,6:9],
+        "concentration": data[:,3],
+        "velocity": data[:,4:]
+    }
+    vtk_data = numpy_to_vtk(data[:,:3],array_dict)
 
-    # # show(vtk_data)
-    # vtk_write(vtk_data,"test.vtu")
+    # show(vtk_data)
+    vtk_write(vtk_data,"test.vtu")
 
 
     ############### parallel coordinates #############

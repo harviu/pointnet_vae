@@ -112,7 +112,21 @@ if __name__ == "__main__":
             for i,f in enumerate(file_list):
                 print("file in process: ",f)
                 print("file processed {}/{}".format(i,len(file_list)))
-                pd = PointData(f,args,"partial")
+                if args.source == "fpm":
+                    data_source = vtk_reader(f)
+                elif args.source == "cos":
+                    data_source = sdf_reader(f)
+                if args.have_label:
+                    # read halo file if have label
+                    dir_name, real_file_name = os.path.split(f)
+                    timestep = int(real_file_name[-4:-2])
+                    if timestep == 0: 
+                        timestep = 100
+                    halo_file_name = dir_name+"/../rockstar/out_{}.list".format(timestep-2)
+                    halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
+                    pd = PointData(data_source,args,None,halo_info)
+                else:
+                    pd = PointData(data_source,args)
                 loader = DataLoader(pd, batch_size=args.batch_size, shuffle=True, drop_last=True)
                 model.train()
                 train_loss = 0
