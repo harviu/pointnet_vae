@@ -17,7 +17,10 @@ def inference(pd,model,batch_size,args):
     loader = DataLoader(pd, batch_size=batch_size, shuffle=False, drop_last=False)
     model.eval()
     with torch.no_grad():
-        latent_all = torch.zeros((len(pd),args.vector_length),dtype=torch.float32,device="cpu")
+        if args.have_label:
+            latent_all = torch.zeros((len(pd),args.vector_length//2),dtype=torch.float32,device="cpu")
+        else:
+            latent_all = torch.zeros((len(pd),args.vector_length),dtype=torch.float32,device="cpu")
         predict_all = torch.zeros((len(pd),2),dtype=torch.float32,device="cpu")
         for i, d in enumerate(loader):
             if isinstance(d,list):
@@ -33,10 +36,12 @@ def inference(pd,model,batch_size,args):
             elif args.mode=="ball":
                 latent = model.encode(data,mask) 
             if args.have_label:
-                predict = model.cls(latent)
+                latent = model.cls[:6](latent)
+                predict = model.cls[6:](latent)
                 predict_all[i*batch_size:(i+1)*batch_size] = predict.detach().cpu()
             latent_all[i*batch_size:(i+1)*batch_size] = latent.detach().cpu()
-            print("processed",i+1,"/",len(loader))
+            print("processed",i+1,"/",len(loader),end="\r")
+        print()
     if args.have_label:
         return latent_all,predict_all
     else:
