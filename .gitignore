@@ -9,3 +9,4 @@ log*/
 *.log
 images/
 run*/
+plot.py
