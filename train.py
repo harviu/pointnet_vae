@@ -78,6 +78,7 @@ if __name__ == "__main__":
     parser.add_argument('-s', dest='source', type=str, default="fpm", help='data source')
     parser.add_argument('-k', dest='k', type=int, default=256, help='k in knn')
     parser.add_argument('-r', dest='r', type=float, default=0.2, help='r in ball query')
+    parser.add_argument("--result-dir", dest="result_dir", type=str, default="states", help='the directory to save the result')
     # parser.add_argument('--recon-length', dest='recon_length', type=int, default=256, help='r in ball query')
     args = parser.parse_args()
     args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -165,13 +166,13 @@ if __name__ == "__main__":
                     if i == len(loader)-1:
                         print('====> Epoch: {} Average loss: {:.4f}'.format(
                             epoch, train_loss / len(loader)))
-                if not os.path.isdir("./states"):
-                    os.mkdir("./states")
+                if not os.path.isdir(args.result_dir):
+                    os.mkdir(args.result_dir)
                 save_dict = {
                     "state": model.state_dict(),
                     "config":args,
                 }
-                torch.save(save_dict,'states/CP{}.pth'.format(epoch))
+                torch.save(save_dict,args.result_dir+'/CP{}.pth'.format(epoch))
                 print('Checkpoint {} saved !'.format(epoch))
             scheduler.step()
 
