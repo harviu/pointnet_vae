@@ -37,12 +37,15 @@ class PointData(Dataset):
 
         if self.have_label:
             halo_position, halo_radius = halo_info
-            halo_position = normalize(halo_position,mean[:3],std[:3])
-            halo_radius /= np.mean(std[:3])
-            positive = []
-            for i in range(len(halo_position)):
-                positive += list(kd.query_ball_point(halo_position[i],halo_radius[i]))
-            positive = np.unique(positive)
+            if len(halo_position) > 0:
+                halo_position = normalize(halo_position,mean[:3],std[:3])
+                halo_radius /= np.mean(std[:3])
+                positive = []
+                for i in range(len(halo_position)):
+                    positive += list(kd.query_ball_point(halo_position[i],halo_radius[i]))
+                positive = np.unique(positive)
+            else:
+                positive = []
 
         if sampler is None:
             # sample the data according to args.sample_size
