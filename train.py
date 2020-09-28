@@ -109,7 +109,7 @@ if __name__ == "__main__":
         state_dict = torch.load(args.load)
         state = state_dict['state']
         config = state_dict['config']
-        args = config
+        # args = config
         model.load_state_dict(state)
         print('Model loaded from {}'.format(args.load))
 
@@ -135,7 +135,7 @@ if __name__ == "__main__":
                     if timestep == 0: 
                         timestep = 100
                     halo_file_name = dir_name+"/../rockstar/out_{}.list".format(timestep-2)
-                    halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
+                    halo_info = halo_reader(halo_file_name)
                     pd = PointData(data_source,args,None,halo_info)
                 else:
                     pd = PointData(data_source,args)
