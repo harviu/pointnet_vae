@@ -10,3 +10,9 @@ log*/
 images/
 run*/
 plot.py
+*.png
+*.npy
+*.vtu
+*.gif
+*.vti
+example/
