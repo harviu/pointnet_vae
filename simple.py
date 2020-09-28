@@ -63,14 +63,14 @@ def cube_actor(c1,c2):
 
     prop = actor.GetProperty()
     prop.SetOpacity(0.2)
-    prop.SetColor(1.0, 0.0, 0.0)
+    prop.SetColor(0.0, 1.0, 1.0)
 
     return actor
 
 
-def text_actor():
+def text_actor(time):
     actor = vtk.vtkTextActor()
-    actor.SetInput('TEST')
+    actor.SetInput(time)
     actor.SetDisplayPosition(20, 30)
 
     prop = actor.GetTextProperty()
@@ -87,6 +87,7 @@ def text_actor():
 def particles_actor(reader,camera):
     aa = vtkAssignAttribute()
     aa.Assign("concentration", vtkDataSetAttributes.SCALARS, vtkAssignAttribute.POINT_DATA)
+    # aa.Assign("embedding", vtkDataSetAttributes.SCALARS, vtkAssignAttribute.POINT_DATA)
     if isinstance(reader,vtkXMLDataReader):
         aa.SetInputConnection(reader.GetOutputPort())
     else:
@@ -99,13 +100,13 @@ def particles_actor(reader,camera):
     mask.GenerateVerticesOn()
     mask.SingleVertexPerCellOn()
 
-    threshold = vtkThreshold()
-    threshold.SetInputConnection(mask.GetOutputPort())
-    threshold.ThresholdByUpper(20)
+    # threshold = vtkThreshold()
+    # threshold.SetInputConnection(mask.GetOutputPort())
+    # threshold.ThresholdByUpper(20)
     # threshold.ThresholdByLower(0)
 
     geom = vtkGeometryFilter()
-    geom.SetInputConnection(threshold.GetOutputPort())
+    geom.SetInputConnection(mask.GetOutputPort())
 
     sort = vtkDepthSortPolyData()
     sort.SetInputConnection(geom.GetOutputPort())
@@ -128,8 +129,10 @@ def particles_actor(reader,camera):
     actor.SetMapper(mapper)
 
     prop = actor.GetProperty()
-    prop.SetPointSize(1.5)
-    prop.SetOpacity(0.7)
+    # prop.SetPointSize(1.5)
+    # prop.SetOpacity(1)
+    prop.SetRenderPointsAsSpheres(1)
+    prop.SetPointSize(8)
 
     return actor
 
@@ -170,7 +173,7 @@ def load_show(filename):
     window.Render()
     renWinInter.Start()
 
-def show(data,c1,c2,outfile="test",show=True):
+def show(data,time="TEST",c1=None,c2=None,outfile="test",show=True):
     camera = vtkCamera()
     camera.SetPosition(0, -25.0, 12.5)
     camera.SetFocalPoint(0, 0, 4.1)
@@ -181,8 +184,9 @@ def show(data,c1,c2,outfile="test",show=True):
 
     renderer.AddActor(particles_actor(data,camera))
     renderer.AddActor(cylinder_actor())
-    renderer.AddActor(cube_actor(c1,c2))
-    renderer.AddActor(text_actor())
+    if c1 is not None:
+        renderer.AddActor(cube_actor(c1,c2))
+    renderer.AddActor(text_actor(time))
 
     window = vtkRenderWindow()
     window.PointSmoothingOn()

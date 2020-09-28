@@ -27,27 +27,6 @@ from simple import show
 from mean_shift import LatentRetriever
 
 
-def kmean_and_save(data,attr,k=10,mode="fpm"):
-    km = KMeans(k,n_init=10,n_jobs=-1)
-    res = km.fit_predict(attr)
-    # if mode=="cos":
-    #     array_dict = {
-    #         "cluster": res,
-    #         "phi":data[:,-1],
-    #         "velocity":data[:,3:6],
-    #         "acceleration":data[:,6:9],
-    #     }
-    # else:
-    #     array_dict = {
-    #         "cluster": res,
-    #         "concentration": data[:,3],
-    #         "velocity": data[:,4:]
-    #     }
-    # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
-    # vtk_write(vtk_data,"cos_latent_last49.vtu")
-    return res
-
-
 class Node():
     def __init__(self,value):
         self.left = None
@@ -82,16 +61,18 @@ if __name__ == "__main__":
         data_path = os.environ['data']
     except KeyError:
         data_path = './data/'
-
-    mode = "fpm"
+    mode = "cos"
 
     if mode == "fpm":
         data_directory = data_path+"/2016_scivis_fpm/0.44/run41/025.vtu"
-        state_dict_directory = "states_saved/fpm_knn128_dim7_vec64_CP5.pth"
+        # state_dict_directory = "states_saved/fpm_knn128_dim7_vec64_CP35.pth"
+        state_dict_directory = "states_saved/fpm_k128_v32/CP5.pth"
         data = vtk_reader(data_directory)
     else:
         data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
-        state_dict_directory = "states_saved/cos_label_knn128_dim10_vec512_CP35.pth"
+        # state_dict_directory = "states_saved/cos_label_knn128_dim10_vec512_CP35.pth"
+        # state_dict_directory = "states_saved/cos_k128_v256/CP10.pth"
+        state_dict_directory = "states/cos_k128_v256/CP1.pth"
         halo_directory = data_path + '/ds14_scivis_0128/rockstar/out_47.list'
         data = sdf_reader(data_directory)
     
@@ -112,47 +93,78 @@ if __name__ == "__main__":
         pd = PointData(data,args,np.arange(len(data)))
         latent = inference(pd,model,1500,args)
         # torch.save(latent,"fpm_latent_25")
+
     
 
     ################# analysis ##################
-    # predict = torch.load("results/cos_label/predict49")
-    # predict = np.argmax(predict,1)
-    # print(IoU(predict,label))
+    predict = np.argmax(predict,1)
+    print(IoU(predict,label))
     # latent = torch.load("results/cos_label/cos_latent_last49")
+
+    # pca = PCA(4)
+    # pca.fit(latent)
+    # pickle.dump( pca, open( "pca_cos", "wb" ) )
 
     # pca = PCA(16)
     # latent = pca.fit_transform(latent)
-    res = kmean_and_save(data,latent,4)
+    # km = KMeans(4,n_init=3,n_jobs=-1)
+    # embedding = km.fit_predict(latent)
+    # new_cluster = km.cluster_centers_
+    # print(km.cluster_centers_)
 
-    ############### pca #############
-    pca = PCA(4)
-    pca.fit(latent)
-    with open("pca","wb") as f:
-        pickle.dump(pca,f)
-    # with open("pca","rb") as f:
-    #     pca = pickle.load(f)
-    # p = pca.transform(latent)
+    # if mode=="cos":
+    #     array_dict = {
+    #         "embedding": embedding,
+    #         "phi":data[:,-1],
+    #         "velocity":data[:,3:6],
+    #         "acceleration":data[:,6:9],
+    #     }
+    # else:
+    #     array_dict = {
+    #         # "pca": pca_output,
+    #         # "mean": mean_neighbor,
+    #         "embedding": embedding,
+    #         "concentration": data[:,3],
+    #         "velocity": data[:,4:]
+    #     }
+    # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
+    # vtk_write(vtk_data,"result_overview.vtu")
+
+    # cluster_centers = np.load("cluster_center.npy")[3]
+    # distance = np.sum((new_cluster - cluster_centers) ** 2,-1)
+    # interested_cluster = np.argmin(distance)
+    # print(distance,interested_cluster)
 
     ############### DBSCAN #############
-
-    # data = data
-    # res = np.zeros((len(data)),dtype=np.int)
-    # res[save_idx] = 1
-    # data = data[save_idx]
-    # np.save("interesting_cluster",data)
-    # data = np.load("interesting_cluster.npy")
-    # print(data.shape)
+    # cluster_id = embedding
+    # data = data[cluster_id==interested_cluster]
+    # # print(data.shape)
     # db = DBSCAN(0.44,30)
     # res2 = db.fit_predict(data[:,:3])
-    # res2 = res2.astype(np.long)
-    # print(res2.shape)
+    # res2 = res2.astype(np.int)
+    # print(np.max(res2))
+
+    # array_dict = {
+    #     # "pca": pca_output,
+    #     # "mean": mean_neighbor,
+    #     "embedding": res2,
+    #     "concentration": data[:,3],
+    #     "velocity": data[:,4:]
+    # }
+    # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
+    # vtk_write(vtk_data,"result_overview.vtu")
 
 
     ############### parallel coordinates #############
-    lat = np.concatenate((latent,res[:,None]),1)
-    df = pandas.DataFrame(data=lat[::100])
-    pandas.plotting.parallel_coordinates(df,class_column=args.vector_length,color=('red', 'green', 'blue','yellow'))
-    plt.show()
+    # lat = np.concatenate((latent,embedding[:,None]),1)
+    # df = pandas.DataFrame(data=lat[::100])
+    # plt.figure(figsize=(9,4))
+    # plt.xlabel('Embedding Dimension')
+    # plt.ylabel('Value')
+    # pandas.plotting.parallel_coordinates(df,class_column=args.vector_length,color=('#3985ad'))
+    # legend = plt.legend()
+    # legend.remove()
+    # plt.show()
 
     ################ tsne #################
     # tsn = TSNE(2)
@@ -186,3 +198,34 @@ if __name__ == "__main__":
     #         node_list.append(node.right)
     #     idx += 1
     # # traverse(root)
+
+    ########## convert to density #############
+    # coord = data[:,:3]
+    # kd = cKDTree(coord,leafsize=100)
+    # x = np.linspace(-5,5,64)
+    # y = np.linspace(-5,5,64)
+    # z = np.linspace(0,10,64)
+    # xv,yv,zv = np.meshgrid(x,y,z)
+    # xv = xv.reshape(-1)
+    # yv = yv.reshape(-1)
+    # zv = zv.reshape(-1)
+    # idx = np.array([xv,yv,zv]).T
+    # nn = kd.query_ball_point(idx,r=0.4,n_jobs=-1)
+    # density = np.zeros((len(idx)))
+    # print(density.shape)
+    # for i,n in enumerate(nn):
+    #     if len(n) > 1 :
+    #         center = idx[i]
+    #         n = data[n]
+    #         dis = np.sqrt(np.sum((n[:,:3]-center[:3])**2,-1))
+    #         weight = 1- 1/(dis + 1e-8)
+    #         density[i] = np.average(n,0,weight)[3]
+    #         print(i)
+    # vtk_data = vtk.vtkImageData()
+    # vtk_data.SetDimensions(64,64,64)
+    # scaler = numpy_support.numpy_to_vtk(density)
+    # vtk_data.GetPointData().AddArray(scaler)
+    # writer = vtk.vtkXMLImageDataWriter()
+    # writer.SetFileName("test.vti")
+    # writer.SetInputData(vtk_data)
+    # writer.Write()

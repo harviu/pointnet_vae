@@ -16,6 +16,7 @@ from process_data import *
 def inference(pd,model,batch_size,args):
     loader = DataLoader(pd, batch_size=batch_size, shuffle=False, drop_last=False)
     model.eval()
+    test_loss = 0
     with torch.no_grad():
         if args.have_label:
             latent_all = torch.zeros((len(pd),args.vector_length//2),dtype=torch.float32,device="cpu")
@@ -23,6 +24,7 @@ def inference(pd,model,batch_size,args):
             latent_all = torch.zeros((len(pd),args.vector_length),dtype=torch.float32,device="cpu")
         predict_all = torch.zeros((len(pd),2),dtype=torch.float32,device="cpu")
         for i, d in enumerate(loader):
+            # t1 = time.time()
             if isinstance(d,list):
                 data = d[0][:,:,:args.dim].float().cuda()
                 if args.have_label:
@@ -40,8 +42,15 @@ def inference(pd,model,batch_size,args):
                 predict = model.cls[6:](latent)
                 predict_all[i*batch_size:(i+1)*batch_size] = predict.detach().cpu()
             latent_all[i*batch_size:(i+1)*batch_size] = latent.detach().cpu()
+            # t2 = time.time()
+            # print(t2-t1)
+            if args.have_label:
+                loss_fn = nn.CrossEntropyLoss(reduction="mean")
+                loss = loss_fn(predict,label)
+                test_loss += loss.item()
             print("processed",i+1,"/",len(loader),end="\r")
         print()
+        print("loss: ", test_loss/len(loader))
     if args.have_label:
         return latent_all,predict_all
     else:

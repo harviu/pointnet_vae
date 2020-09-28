@@ -9,6 +9,7 @@ from scipy.spatial.ckdtree import cKDTree
 from sklearn.decomposition import PCA
 from model import AE
 from sklearn.cluster import KMeans
+from thingking import loadtxt
 
 from process_data import *
 from simple import show
@@ -45,11 +46,14 @@ class LatentRetriever():
             _, nn = kd.query(center,args.k,n_jobs=-1)
             batch = data[nn][:,:,:args.dim]
             batch[:,:,:3] -= center[:,None,:]
-            # batch -= data[inference_idx][:,None,:]
             batch =torch.FloatTensor(batch).cuda()
             model.eval()
             with torch.no_grad():
-                latent = model.encode(batch).cpu().detach()
+                if not args.have_label:
+                    latent = model.encode(batch).cpu().detach()
+                else:
+                    latent = model.encode(batch) 
+                    latent = model.cls[:6](latent).cpu().detach()
             self.latent[inference_idx] = self.pca.transform(latent)
         return self.latent[idx]
 
@@ -78,11 +82,6 @@ def mean_shift_track(
     t1 = data1[filter(data1,c1,c2,4)]
     d1_idx = filter(t1,c1,c2)
     d1 = t1[d1_idx]
-    #show initial 
-    # x1,y1,z1 = c1
-    # x2,y2,z2 = c2
-    # center = ((x1+x2)/2,(y1+y2)/2,(z1+z2)/2)
-    # scatter_3d(t1,threshold=10,center=center)
 
     t2 = data2[filter(data2,c1,c2,4)]
     d2_idx = filter(t2,c1,c2)
@@ -170,11 +169,6 @@ def mean_shift_track(
         current_ite+=1
         if current_ite == ite:
             break
-    # show final
-    # x1,y1,z1 = c1
-    # x2,y2,z2 = c2
-    # center = ((x1+x2)/2,(y1+y2)/2,(z1+z2)/2)
-    # scatter_3d(t2,threshold=10,center=center)
 
     return c1,c2, current_ite
     
@@ -195,115 +189,93 @@ def weighted_hist(near_coord,near_attr, center, h,bins,ranges):
     hist[0][hist[0]<0] = 0
     return hist[0]
 
-
-    
+def get_benchmark(path, start,end,index):
+    center_list = []
+    for i in range(start,end+1):
+        ID, DescID, Mvir, Vmax, Vrms, Rvir, Rs, Np, x, y, z, VX, VY, VZ, JX, JY, JZ, Spin, rs_klypin, Mvir_all, M200b, M200c, M500c, M2500c, Xoff, Voff, spin_bullock, b_to_a, c_to_a, A_x_, A_y_, A_z_, b_to_a_500c_, c_to_a_500c_, A_x__500c_, A_y__500c_, A_z__500c_, TU, M_pe_Behroozi, M_pe_Diemer = \
+            loadtxt(path+"/ds14_scivis_0128/rockstar/out_{:02d}.list".format(i-2), unpack=True)
+        order = list(ID).index(index)
+        index = DescID[order]
+        this_center = (x[order],y[order],z[order])
+        center_list.append(this_center)
+        if index == -1:
+            print("halo disappear")
+            break
+    # print(center_list)
+    return center_list
 
 if __name__ == "__main__":
-    
     try:
         data_path = os.environ['data']
     except KeyError:
         data_path = './data/'
+    print(get_benchmark(data_path,51,69,2810))
+
         
-    state_dict = torch.load("states_saved/fpm_knn128_dim7_vec64_CP5.pth")
-    state = state_dict['state']
-    args = state_dict['config']
-    print(args)
+    # state_dict = torch.load("states_saved/cos_label_knn128_dim10_vec512_CP35.pth")
+    # state = state_dict['state']
+    # args = state_dict['config']
+    # print(args)
     # halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
-    model = AE(args).float().cuda()
-    model.load_state_dict(state)
-    cluster_centers = np.load("cluster_center.npy")[3]
+    # model = AE(args).float().cuda()
+    # model.load_state_dict(state)
     
-    # run41_25
-    # c1 = (3.2,0.1,5.2)
-    # c2 = (4.4,1.3,6.4)
-    # c1 = (-2.7,-2.7,4.9)
-    # c2 = (-1.3,-1.3,6.1)
-    # c1 = (0.25,-2,5.3)
-    # c2 = (1.75,-0,6.3)
-    # c1 = (-2.5,-1,5.8)
-    # c2 = (-1.5,0.2,6.7)
-    c1 = (0,3.5,6.5)
-    c2 = (1,4.5,7.5)
-    # run41_35
-    # c1 = (0.5,-1.8,2.5)
-    # c2 = (2,-0.2,3.5)
-    # run09_25
-    # c1 = (1.2,-1.8,5)
-    # c2 = (2.4,-0.8,6)
+    # # run41_25
+    # # c1 = (3.2,0.1,5.2)
+    # # c2 = (4.4,1.3,6.4)
+    # # c1 = (-2.7,-2.7,4.9)
+    # # c2 = (-1.3,-1.3,6.1)
+    # # c1 = (0.25,-2,5.3)
+    # # c2 = (1.75,-0,6.3)
+    # # c1 = (-2.5,-1,5.8)
+    # # c2 = (-1.5,0.2,6.7)
+    # # c1 = (0,3.5,6.5)
+    # # c2 = (1,4.5,7.5)
+    # # run41_35
+    # # c1 = (0.5,-1.8,2.5)
+    # # c2 = (2,-0.2,3.5)
+    # # run09_25
+    # # c1 = (1.2,-1.8,5)
+    # # c2 = (2.4,-0.8,6)
+    # # cos
+    # c1 = (10,10,10)
+    # c2 = (15,15,15)
 
-    with open("pca","rb") as f:
-        pca = pickle.load(f)
-    print(c1,c2)
+    # pca = pickle.load(open( "pca_cos", "rb" ))
+    # print(c1,c2)
 
-    average_time_list = []
-    length_list = []
-    for ww in range(50):
-        print(ww)
-        w = 0.3 + 0.1 * math.sqrt(ww)
-        c1 = (0.5-w,4-w,7-w)
-        c2 = (0.5+w,4+w,7+w)
-        data_directory = data_path+"/2016_scivis_fpm/0.44/run41/025.vtu"
-        data = vtk_reader(data_directory)
+    # average_time_list = []
+    # length_list = []
+    
+    # data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
+    # data = sdf_reader(data_directory)
 
-        # latent = torch.load("run41_latent/{:03d}".format(25))
-        # km = KMeans(5,n_init=3,n_jobs=-1)
-        # embedding = km.fit_predict(latent)
-        # new_cluster = km.cluster_centers_
-        # distance = np.sum((new_cluster - cluster_centers) ** 2,-1)
-        # interested_cluster = np.argmin(distance)
-        # cluster_id = embedding
-        # data = data[cluster_id==interested_cluster]
-        # array_dict = {
-        #     "concentration": data[:,3],
-        #     "velocity": data[:,4:]
-        # }
-        # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
-        # show(vtk_data,c1=c1,c2=c2,outfile="tracking1_b5/25",show=False,time="25")
-        # scatter_3d(data[::3],threshold=10)
+    # iteration_list = []
+    # time_list = []
 
-        iteration_list = []
-        time_list = []
+    # d1_idx = filter(data,c1,c2)
+    # d1_length = np.sum(d1_idx)
+    # # print(d1_length)
+    # length_list.append(d1_length)
 
-        d1_idx = filter(data,c1,c2)
-        d1_length = np.sum(d1_idx)
-        # print(d1_length)
-        length_list.append(d1_length)
+    # for i in range(49,69):
+    #     data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i)
+    #     data1 = sdf_reader(data_directory)
+    #     data1 = data1[:,:args.dim]
 
-        for i in range(25,45):
-            data_directory = data_path+"/2016_scivis_fpm/0.44/run41/{:03d}.vtu".format(i)
-            data1 = vtk_reader(data_directory)
-            data1 = data1[:,:args.dim]
+    #     data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i+1)
+    #     data2 = sdf_reader(data_directory)
+    #     data2 = data2[:,:args.dim]
 
-            data_directory = data_path+"/2016_scivis_fpm/0.44/run41/{:03d}.vtu".format(i+1)
-            data2 = vtk_reader(data_directory)
-            data2 = data2[:,:args.dim]
+    #     t1 = time.time()
+    #     c1,c2,iteration_number = mean_shift_track(data1,data2,c1,c2,True,h=1,bins=2,model=model,args=args,latent_dimension=4,pca=pca)
+    #     t2 = time.time()
+    #     time_list.append(t2-t1)
 
-            t1 = time.time()
-            c1,c2,iteration_number = mean_shift_track(data1,data2,c1,c2,True,h=1,bins=2,model=model,args=args,latent_dimension=4,pca=pca)
-            t2 = time.time()
-            time_list.append(t2-t1)
+    #     iteration_list.append(iteration_number)
 
-            iteration_list.append(iteration_number)
+    # # print(iteration_list)
 
-            # latent = torch.load("run41_latent/{:03d}".format(i+1))
-            # km = KMeans(5,n_init=3,n_jobs=-1)
-            # embedding = km.fit_predict(latent)
-            # new_cluster = km.cluster_centers_
-            # distance = np.sum((new_cluster - cluster_centers) ** 2,-1)
-            # interested_cluster = np.argmin(distance)
-            # cluster_id = embedding
-            # data2 = data2[cluster_id==interested_cluster]
-            # array_dict = {
-            #     "concentration": data2[:,3],
-            #     "velocity": data2[:,4:]
-            # }
-            # vtk_data = numpy_to_vtk(data2[:,:3],array_dict)
-            # show(vtk_data,c1=c1,c2=c2,outfile="tracking1_b5/{}".format(i+1),show=False,time=str(i+1))
-        # print(iteration_list)
-        average_time = sum(time_list[1:])/(len(time_list)-1)
-        average_time_list.append(average_time)
-
-    np.save("length_list",length_list)
-    np.save("average_time_list",average_time_list)
+    # np.save("length_list",length_list)
+    # np.save("average_time_list",average_time_list)
 
