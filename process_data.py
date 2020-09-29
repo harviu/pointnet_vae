@@ -130,7 +130,7 @@ def halo_reader(filename):
             halo_num = len(x)
             return np.stack([x,y,z],axis=1),r
         except TypeError:
-            return [x,y,z],[r]
+            return np.array([[x,y,z]]),np.array([r])
     except ValueError:
         return [],[]
 
@@ -157,12 +157,12 @@ def scatter_3d(array,vmin=None,vmax=None,threshold = -1e10,center=None,save=Fals
         plt.show()
 
 
-def halo_writer(x,y,z,Rvir,outputname):
+def halo_writer(center,Rvir,outputname):
     haloData = vtk.vtkAppendPolyData()
-    for i in range(len(x)):
-        print(i,"/",len(x),end='\r')
+    for i in range(len(center)):
+        print(i,"/",len(center),end='\r')
         s = vtk.vtkSphereSource()
-        s.SetCenter(x[i],y[i],z[i])
+        s.SetCenter(*center[i])
         s.SetRadius(Rvir[i])
         s.Update()
         input1 = vtk.vtkPolyData()
