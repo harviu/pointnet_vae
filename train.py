@@ -50,7 +50,7 @@ def inference(pd,model,batch_size,args):
                 test_loss += loss.item()
             print("processed",i+1,"/",len(loader),end="\r")
         print()
-        print("loss: ", test_loss/len(loader))
+        print("loss:", test_loss/len(loader))
     if args.have_label:
         return latent_all,predict_all
     else:

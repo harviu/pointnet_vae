@@ -277,3 +277,23 @@ def vtk_write(data_save,filename:str):
     writer.SetFileName(filename)
     writer.SetInputData(data_save)
     writer.Write()
+
+def plot_loss(filename):
+    epoch = 1
+    loss_sum = 0.0
+    loss_list = []
+    count = 0
+    with open(filename,"r") as f:
+        for line in f:
+            if "====>" in line:
+                line_list = line.split(' ')
+                loss = float(line_list[5])
+                if epoch == int(line_list[2]):
+                    loss_sum += loss
+                    count += 1
+                else:
+                    epoch = int(line_list[2])
+                    loss_list.append(loss_sum/count)
+                    loss_sum = loss
+                    count = 1
+    print(loss_list)
