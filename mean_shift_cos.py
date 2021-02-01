@@ -49,11 +49,10 @@ class LatentRetriever():
             batch =torch.FloatTensor(batch).cuda()
             model.eval()
             with torch.no_grad():
-                if not args.have_label:
-                    latent = model.encode(batch).cpu().detach()
-                else:
-                    latent = model.encode(batch) 
-                    latent = model.cls[:6](latent).cpu().detach()
+                latent = model.encode(batch)
+                if args.have_label:  #change for new layer
+                    latent = model.cls[:6](latent)
+                latent = latent.cpu().detach()
             self.latent[inference_idx] = self.pca.transform(latent)
         return self.latent[idx]
 
@@ -75,15 +74,15 @@ def filter(data,c1,c2,multiple = 1):
 
 def mean_shift_track(
     data1,data2,c1,c2, latent=False, 
-    h=1,bins=10,eps=1e-4,ite=100, 
+    h=1,bins=10,eps=1e-4,ite=30, 
     model=None,args=None,latent_dimension=None,pca=None):
 
     # crop an approximate area
-    t1 = data1[filter(data1,c1,c2,4)]
+    t1 = data1[filter(data1,c1,c2,5)]
     d1_idx = filter(t1,c1,c2)
     d1 = t1[d1_idx]
 
-    t2 = data2[filter(data2,c1,c2,4)]
+    t2 = data2[filter(data2,c1,c2,5)]
     d2_idx = filter(t2,c1,c2)
     d2 = t2[d2_idx]
     center = np.mean(d1[:,:3],axis=0)
@@ -191,91 +190,94 @@ def weighted_hist(near_coord,near_attr, center, h,bins,ranges):
 
 def get_benchmark(path, start,end,index):
     center_list = []
+    r = []
     for i in range(start,end+1):
         ID, DescID, Mvir, Vmax, Vrms, Rvir, Rs, Np, x, y, z, VX, VY, VZ, JX, JY, JZ, Spin, rs_klypin, Mvir_all, M200b, M200c, M500c, M2500c, Xoff, Voff, spin_bullock, b_to_a, c_to_a, A_x_, A_y_, A_z_, b_to_a_500c_, c_to_a_500c_, A_x__500c_, A_y__500c_, A_z__500c_, TU, M_pe_Behroozi, M_pe_Diemer = \
             loadtxt(path+"/ds14_scivis_0128/rockstar/out_{:02d}.list".format(i-2), unpack=True)
-        order = list(ID).index(index)
-        index = DescID[order]
-        this_center = (x[order],y[order],z[order])
+        order = list(ID).index(index) # get order of the halo idx
+        this_center = (x[order],y[order],z[order]) # get this center
+        this_r = Rvir[order] # get this radius
         center_list.append(this_center)
+        r.append(this_r/1000)
+        index = DescID[order] # get next index
         if index == -1:
             print("halo disappear")
             break
     # print(center_list)
-    return center_list
+    return center_list, r
 
 if __name__ == "__main__":
+    # np.seterr(all='raise')
     try:
         data_path = os.environ['data']
     except KeyError:
         data_path = './data/'
-    print(get_benchmark(data_path,51,69,2810))
 
-        
-    # state_dict = torch.load("states_saved/cos_label_knn128_dim10_vec512_CP35.pth")
-    # state = state_dict['state']
-    # args = state_dict['config']
-    # print(args)
-    # halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
-    # model = AE(args).float().cuda()
-    # model.load_state_dict(state)
-    
-    # # run41_25
-    # # c1 = (3.2,0.1,5.2)
-    # # c2 = (4.4,1.3,6.4)
-    # # c1 = (-2.7,-2.7,4.9)
-    # # c2 = (-1.3,-1.3,6.1)
-    # # c1 = (0.25,-2,5.3)
-    # # c2 = (1.75,-0,6.3)
-    # # c1 = (-2.5,-1,5.8)
-    # # c2 = (-1.5,0.2,6.7)
-    # # c1 = (0,3.5,6.5)
-    # # c2 = (1,4.5,7.5)
-    # # run41_35
-    # # c1 = (0.5,-1.8,2.5)
-    # # c2 = (2,-0.2,3.5)
-    # # run09_25
-    # # c1 = (1.2,-1.8,5)
-    # # c2 = (2.4,-0.8,6)
-    # # cos
-    # c1 = (10,10,10)
-    # c2 = (15,15,15)
+    directory = "states_saved/cos_k64_v256/"
+    # directory = "states_saved/cos_k128_v512/"
+    state_dict = torch.load(directory + "/CP35.pth")
+    state = state_dict['state']
+    args = state_dict['config']
+    print(args)
+    halo_info = halo_reader(data_path+"/ds14_scivis_0128/rockstar/out_47.list")
+    model = AE(args).float().cuda()
+    model.load_state_dict(state)
+    data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
+    data = sdf_reader(data_directory)
 
-    # pca = pickle.load(open( "pca_cos", "rb" ))
-    # print(c1,c2)
+    pca = pickle.load(open( directory+"/pca_late", "rb" ))
+    all_distance = []
+    c_list = []
+    for j in range(3633,3634):
+        start = 49
+        track_length = 10
+        center,r = get_benchmark(data_path,start,start+track_length,j)
+        print("halo_index:",j)
+        # print("center",center)
+        track_length = len(r) -1
+        margin = 0.05
+        xyz = center[0]
+        width = r[0] + margin
+        c1 = (xyz[0]-width,xyz[1]-width,xyz[2]-width)
+        c2 = (xyz[0]+width,xyz[1]+width,xyz[2]+width)
+        # time_list = []
+        distance_list = np.zeros((track_length))
+        time_step = 0
+        breaker = True
 
-    # average_time_list = []
-    # length_list = []
-    
-    # data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
-    # data = sdf_reader(data_directory)
+        for i in range(start,start+track_length):
+            data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i)
+            data1 = sdf_reader(data_directory)
+            data1 = data1[:,:args.dim]
 
-    # iteration_list = []
-    # time_list = []
+            data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i+1)
+            data2 = sdf_reader(data_directory)
+            data2 = data2[:,:args.dim]
 
-    # d1_idx = filter(data,c1,c2)
-    # d1_length = np.sum(d1_idx)
-    # # print(d1_length)
-    # length_list.append(d1_length)
+            # try:
+            c1,c2,iteration_number = mean_shift_track(data1,data2,c1,c2,True,h=1,bins=2,model=model,args=args,latent_dimension=4,pca=pca)
+            # except:
+            #     breaker = False
+            #     break
+            c = (np.array(c1)+np.array(c2))/2
+            c_list.append(c)
+            distance = np.sqrt(np.sum((np.array(center[time_step+1]) - c) ** 2))
+            distance_list[time_step] += distance
+            time_step+=1
+        # if not breaker:
+        #     continue
+        all_distance.append(distance_list)
+        distance_list /= np.array(r[1:])
+        print(distance_list)
+        # print(c_list)
+    array_dict = {
+        "index": np.arange(track_length)
+    }
+    print(np.array(center[1:]).shape)
+    print(np.array(c_list).shape)
+    gt_vtk = numpy_to_vtk(np.array(center[1:]),array_dict)
+    track_vtk = numpy_to_vtk(np.array(c_list),array_dict)
+    vtk_write(gt_vtk,"gt.vtu")
+    vtk_write(track_vtk,"track.vtu")
 
-    # for i in range(49,69):
-    #     data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i)
-    #     data1 = sdf_reader(data_directory)
-    #     data1 = data1[:,:args.dim]
-
-    #     data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{}00'.format(i+1)
-    #     data2 = sdf_reader(data_directory)
-    #     data2 = data2[:,:args.dim]
-
-    #     t1 = time.time()
-    #     c1,c2,iteration_number = mean_shift_track(data1,data2,c1,c2,True,h=1,bins=2,model=model,args=args,latent_dimension=4,pca=pca)
-    #     t2 = time.time()
-    #     time_list.append(t2-t1)
-
-    #     iteration_list.append(iteration_number)
-
-    # # print(iteration_list)
-
-    # np.save("length_list",length_list)
-    # np.save("average_time_list",average_time_list)
 

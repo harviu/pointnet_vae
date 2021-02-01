@@ -297,3 +297,5 @@ def plot_loss(filename):
                     loss_sum = loss
                     count = 1
     print(loss_list)
+
+# plot_loss("states_saved/cos_k32_v256/cos_k32_v256.o1981764")

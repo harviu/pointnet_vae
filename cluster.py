@@ -62,18 +62,29 @@ if __name__ == "__main__":
     except KeyError:
         data_path = './data/'
     mode = "cos"
-
+    # IoU_list = []
+    # loss_list = []
+    # for i in range(2,100,1):
+    #     print(i)
+    i = 49
     if mode == "fpm":
         data_directory = data_path+"/2016_scivis_fpm/0.44/run41/025.vtu"
         # state_dict_directory = "states_saved/fpm_knn128_dim7_vec64_CP35.pth"
-        state_dict_directory = "states_saved/fpm_k128_v32/CP5.pth"
+        state_dict_directory = "states_saved/fpm_k128_v64/CP35.pth"
         data = vtk_reader(data_directory)
     else:
-        data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.4900'
-        # state_dict_directory = "states_saved/cos_label_knn128_dim10_vec512_CP35.pth"
-        # state_dict_directory = "states_saved/cos_k128_v256/CP10.pth"
-        state_dict_directory = "states/cos_k128_v256/CP1.pth"
-        halo_directory = data_path + '/ds14_scivis_0128/rockstar/out_47.list'
+        if i == 100:
+            data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{:02d}00'.format(i)
+        else:
+            data_directory = data_path + '/ds14_scivis_0128/raw/ds14_scivis_0128_e4_dt04_0.{:02d}00'.format(i)
+        state_dict_directory = "states_saved/cos_k64_v256/CP29.pth"
+        # state_dict_directory = "states_saved/cos_k128_v256/CP16.pth"
+        # state_dict_directory = "states_saved/cos_k128_v512/CP35.pth"
+        # state_dict_directory = "states_saved/cos_k128_v768/CP13.pth"
+        # state_dict_directory = "states_saved/cos_k256_v512/CP20.pth"
+        # state_dict_directory = "states_saved/cos_k64_v512/CP35.pth"
+        # state_dict_directory = "states_saved/cos_k32_v256/CP35.pth"
+        halo_directory = data_path + '/ds14_scivis_0128/rockstar/out_{}.list'.format(i-2)
         data = sdf_reader(data_directory)
     
     state_dict = torch.load(state_dict_directory)
@@ -85,7 +96,7 @@ if __name__ == "__main__":
     if args.have_label:
         hp = halo_reader(halo_directory)
         pd = PointData(data,args,np.arange(len(data)),hp)
-        latent,predict = inference(pd,model,1500,args)
+        latent,predict,loss = inference(pd,model,1000,args)
         label = pd.label
         # torch.save(latent,"cos_latent_middle49")
         # torch.save(predict,"predict")
@@ -98,12 +109,19 @@ if __name__ == "__main__":
 
     ################# analysis ##################
     predict = np.argmax(predict,1)
-    print(IoU(predict,label))
+    IoU_value = IoU(predict,label)
+    sub = predict + label
+    # IoU_list.append(IoU_value)
+    # loss_list.append(loss)
+    # np.save("loss_list",loss_list)
+    # np.save("iou_list",IoU_list)
+
+
     # latent = torch.load("results/cos_label/cos_latent_last49")
 
     # pca = PCA(4)
     # pca.fit(latent)
-    # pickle.dump( pca, open( "pca_cos", "wb" ) )
+    # pickle.dump( pca, open( "states_saved/cos_k64_v256/pca_late", "wb" ) )
 
     # pca = PCA(16)
     # latent = pca.fit_transform(latent)
@@ -112,23 +130,29 @@ if __name__ == "__main__":
     # new_cluster = km.cluster_centers_
     # print(km.cluster_centers_)
 
-    # if mode=="cos":
-    #     array_dict = {
-    #         "embedding": embedding,
-    #         "phi":data[:,-1],
-    #         "velocity":data[:,3:6],
-    #         "acceleration":data[:,6:9],
-    #     }
-    # else:
-    #     array_dict = {
-    #         # "pca": pca_output,
-    #         # "mean": mean_neighbor,
-    #         "embedding": embedding,
-    #         "concentration": data[:,3],
-    #         "velocity": data[:,4:]
-    #     }
-    # vtk_data = numpy_to_vtk(data[:,:3],array_dict)
-    # vtk_write(vtk_data,"result_overview.vtu")
+    if mode=="cos":
+        array_dict = {
+            "predict": predict,
+            "label": label,
+            "sub": sub,
+            "phi":data[:,-1],
+            "velocity":data[:,3:6],
+            "acceleration":data[:,6:9],
+        }
+    else:
+        array_dict = {
+            # "pca": pca_output,
+            # "mean": mean_neighbor,
+            "embedding": embedding,
+            "concentration": data[:,3],
+            "velocity": data[:,4:]
+        }
+    vtk_data = numpy_to_vtk(data[:,:3],array_dict)
+    vtk_write(vtk_data,"cos_49.vtu")
+
+    # hp = halo_reader(halo_directory)
+    # print(hp)
+    # halo_writer(hp[0],hp[1],"halo49.vtu")
 
     # cluster_centers = np.load("cluster_center.npy")[3]
     # distance = np.sum((new_cluster - cluster_centers) ** 2,-1)
